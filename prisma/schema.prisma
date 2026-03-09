@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TipoPagamento {
+  DINHEIRO
+  PIX
+  CARTAO
+}
+
+enum TipoMedida {
+  UNITARIO
+  M2
+}
+
+enum Status {
+  CADASTRADO
+  NAO_ACEITO
+  ACEITO
+  INICIALIZADO
+  FINALIZADO
+}
+
+model Cliente {
+  id         Int         @id @default(autoincrement())
+  nome       String
+  afiliacao  String?
+  telefone   String?
+  orcamentos Orcamento[]
+  
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@map("clientes")
+}
+
+model Material {
+  id                 Int                  @id @default(autoincrement())
+  nome_material      String
+  unidadeMedida      TipoMedida
+  precoUnitario      Float
+  ativo              Boolean              @default(true)
+  materiaisOrcamento MaterialOrcamento[]
+  servicoMateriais   ServicoMaterial[]
+
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@map("materiais")
+}
+
+model Servico {
+  id           Int                  @id @default(autoincrement())
+  descricao    String
+  tipo_cobranca TipoMedida
+  precoBase    Float
+  servicoAtivo Boolean              @default(true)
+  servicosOrcamento ServicoOrcamento[]
+  servicoMateriais  ServicoMaterial[]
+
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@map("servicos")
+}
+
+model ServicoMaterial {
+  id          Int      @id @default(autoincrement())
+  quantidade  Float
+  servicoId   Int
+  servico     Servico  @relation(fields: [servicoId], references: [id], onDelete: Cascade)
+  materialId  Int
+  material    Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([servicoId, materialId])
+  @@map("servico_materiais")
+}
+
+model Orcamento {
+  id             Int                @id @default(autoincrement())
+  endereco       String
+  data           DateTime           @default(now())
+  tempoEstimado  Int?
+  incluiMaterial Boolean            @default(false)
+  totalParcelas  Float?
+  status         Status             @default(CADASTRADO)
+  
+  clienteId      Int
+  cliente        Cliente            @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  
+  materiais      MaterialOrcamento[]
+  servicos       ServicoOrcamento[]
+  pagamentos     Pagamento[]
+  
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@map("orcamentos")
+}
+
+model MaterialOrcamento {
+  id                Int       @id @default(autoincrement())
+  medidaMaterial    TipoMedida?
+  origemMaterial    String?
+  quantidade        Float
+  precoUnitario     Float
+  
+  orcamentoId       Int
+  orcamento         Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  
+  materialId        Int?
+  material          Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("materiais_orcamento")
+}
+
+model ServicoOrcamento {
+  id            Int       @id @default(autoincrement())
+  descricaoLivre String?  @db.Text
+  quantidade    Float
+  valorMaoObra  Float
+  
+  orcamentoId   Int
+  orcamento      Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  
+  servicoId     Int?
+  servico       Servico?  @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("servicos_orcamento")
+}
+
+model Pagamento {
+  id              Int            @id @default(autoincrement())
+  valorRecebido   Float
+  formaPagamento  TipoPagamento
+  data            DateTime       @default(now())
+  
+  orcamentoId     Int
+  orcamento       Orcamento      @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("pagamentos")
+}
+
+model EmpresaConfig {
+  id             Int      @id @default(autoincrement())
+  cabecalho      String   @db.Text
+  logoUrl        String?  @db.Text
+  nomeAssinatura String
+  cidadeEmissao  String?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("empresa_config")
+}
