@@ -1,4 +1,4 @@
-import type PDFDocument from "pdfkit";
+import PDFDocument from "pdfkit";
 import extenso from "extenso";
 import type { ConfigParaPdf } from "./gerar-pdf-orcamento";
 
@@ -27,7 +27,10 @@ export type RecebimentoParaPdf = {
 };
 
 function unidadeParaTexto(tipo: string | null | undefined): string {
-  return tipo === "M2" ? "m²" : "un";
+  if (tipo === "M2") return "m²";
+  if (tipo === "M3") return "m³";
+  if (tipo === "METROS") return "m";
+  return "un";
 }
 
 function construirDescricaoRecebimento(rec: RecebimentoParaPdf): string {
@@ -65,7 +68,7 @@ function valorPorExtenso(valor: number): string {
  * Layout focado em: valor, parcela, forma de pagamento, data.
  */
 export function gerarPdfRecebimento(
-  doc: PDFDocument,
+  doc: InstanceType<typeof PDFDocument>,
   rec: RecebimentoParaPdf,
   config: ConfigParaPdf
 ): void {

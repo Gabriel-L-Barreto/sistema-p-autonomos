@@ -21,11 +21,12 @@ type Props<T extends ItemCatalogo> = {
   onBuscaChange: (value: string) => void;
   selecionadoId: number | null;
   onSelecionarCatalogo: (item: T) => void;
-  onSelecionarCadastrarNoCatalogo: (nome: string) => void;
+  onSelecionarCadastrarNoCatalogo?: (nome: string) => void;
   itens: T[];
   getItemNome: (item: T) => string;
   placeholder?: string;
   id?: string;
+  mostrarOpcaoCadastrar?: boolean;
 };
 
 export function AutocompleteCatalogo<T extends ItemCatalogo>(props: Props<T>) {
@@ -43,7 +44,8 @@ export function AutocompleteCatalogo<T extends ItemCatalogo>(props: Props<T>) {
 
   const itensFiltrados = itens.filter((item) => matchInOrder(busca, getItemNome(item)));
   const temExato = busca.trim() && itens.some((item) => getItemNome(item).toLowerCase() === busca.trim().toLowerCase());
-  const mostraOpcaoCadastrar = busca.trim().length > 0 && !temExato;
+  const mostrarCadastrar = props.mostrarOpcaoCadastrar !== false && props.onSelecionarCadastrarNoCatalogo;
+  const mostraOpcaoCadastrar = mostrarCadastrar && busca.trim().length > 0 && !temExato;
 
   const [dropdownAberto, setDropdownAberto] = React.useState(false);
 
@@ -91,11 +93,11 @@ export function AutocompleteCatalogo<T extends ItemCatalogo>(props: Props<T>) {
               {getItemNome(item)}
             </li>
           ))}
-          {mostraOpcaoCadastrar && (
+          {mostraOpcaoCadastrar && props.onSelecionarCadastrarNoCatalogo && (
             <li
               role="option"
               onClick={() => {
-                props.onSelecionarCadastrarNoCatalogo(busca.trim());
+                props.onSelecionarCadastrarNoCatalogo?.(busca.trim());
                 setDropdownAberto(false);
               }}
               className="cursor-pointer border-t border-slate-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"

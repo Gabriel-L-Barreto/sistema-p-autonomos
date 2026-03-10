@@ -5,17 +5,19 @@ export type Cliente = {
   telefone: string | null;
 };
 
+export type TipoMedida = "UNITARIO" | "M2" | "M3" | "METROS";
+
 export type Material = {
   id: number;
   nome_material: string;
-  unidadeMedida: "UNITARIO" | "M2";
+  unidadeMedida: TipoMedida;
   precoUnitario: number;
 };
 
 export type Servico = {
   id: number;
   descricao: string;
-  tipo_cobranca: "UNITARIO" | "M2";
+  tipo_cobranca: TipoMedida;
   precoBase: number;
 };
 
@@ -23,7 +25,7 @@ export type MaterialOrcamento = {
   id?: number;
   materialId: number | null;
   material: Material | null;
-  medidaMaterial: "UNITARIO" | "M2" | null;
+  medidaMaterial: TipoMedida | null;
   origemMaterial: string | null;
   quantidade: number;
   precoUnitario: number;
@@ -55,9 +57,17 @@ export type OrcamentoFull = {
   incluiMaterial: boolean;
   totalParcelas: number | null;
   status: StatusOrcamento;
+  complemento: string | null;
   materiais: (MaterialOrcamento & { id: number })[];
   servicos: (ServicoOrcamento & { id: number })[];
   pagamentos?: PagamentoItem[];
+};
+
+export const LABELS_MEDIDA: Record<TipoMedida, string> = {
+  UNITARIO: "Unitário",
+  M2: "m²",
+  M3: "m³",
+  METROS: "Metros",
 };
 
 export type PagamentoItem = {

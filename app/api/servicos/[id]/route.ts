@@ -52,7 +52,7 @@ export async function PUT(
 
     const data: {
       descricao?: string;
-      tipo_cobranca?: "UNITARIO" | "M2";
+      tipo_cobranca?: "UNITARIO" | "M2" | "M3" | "METROS";
       precoBase?: number;
       servicoAtivo?: boolean;
     } = {};
@@ -67,9 +67,9 @@ export async function PUT(
       data.descricao = descricao.trim();
     }
     if (tipo_cobranca !== undefined) {
-      if (!["UNITARIO", "M2"].includes(tipo_cobranca)) {
+      if (!["UNITARIO", "M2", "M3", "METROS"].includes(tipo_cobranca)) {
         return NextResponse.json(
-          { error: "Tipo de cobrança inválido (UNITARIO ou M2)" },
+          { error: "Tipo de cobrança inválido (UNITARIO, M2, M3 ou METROS)" },
           { status: 400 }
         );
       }

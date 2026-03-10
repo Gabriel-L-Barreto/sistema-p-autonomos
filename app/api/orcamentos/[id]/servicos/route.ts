@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sanitizarHtml } from "@/lib/sanitize";
 
 export async function POST(
   request: NextRequest,
@@ -52,11 +53,15 @@ export async function POST(
       }
     }
 
+    const descricaoLivreLimpa = descricaoLivre && typeof descricaoLivre === "string"
+      ? sanitizarHtml(descricaoLivre.trim()) || null
+      : null;
+
     const servicoOrcamento = await prisma.servicoOrcamento.create({
       data: {
         orcamentoId,
         servicoId: servicoId || null,
-        descricaoLivre: descricaoLivre?.trim() || null,
+        descricaoLivre: descricaoLivreLimpa,
         quantidade,
         valorMaoObra,
       },

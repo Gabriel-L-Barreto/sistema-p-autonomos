@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutHeader } from "@/components/LayoutHeader";
+import { formatarPreco } from "@/lib/format";
 
 type ServicoCatalogo = {
   id: number;
   descricao: string;
-  tipo_cobranca: "UNITARIO" | "M2";
+  tipo_cobranca: "UNITARIO" | "M2" | "M3" | "METROS";
   precoBase: number;
   servicoAtivo: boolean;
 };
@@ -32,7 +33,7 @@ export default function ServicosPage() {
   const [materiais, setMateriais] = useState<MaterialCatalogo[]>([]);
   const [loading, setLoading] = useState(true);
   const [descricao, setDescricao] = useState("");
-  const [tipo_cobranca, setTipoCobranca] = useState<"UNITARIO" | "M2">("UNITARIO");
+  const [tipo_cobranca, setTipoCobranca] = useState<"UNITARIO" | "M2" | "M3" | "METROS">("UNITARIO");
   const [precoBase, setPrecoBase] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -231,9 +232,6 @@ export default function ServicosPage() {
     }
   };
 
-  const formatarPreco = (valor: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
-
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <LayoutHeader paginaAtiva="catalogo" />
@@ -241,7 +239,7 @@ export default function ServicosPage() {
       <main className="mx-auto max-w-5xl px-6 py-8">
         <h1 className="text-2xl font-semibold tracking-tight">Catálogo de serviços</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Cadastre serviços para usar nos orçamentos. Cobrança: Unitário ou por M².
+          Cadastre serviços para usar nos orçamentos. Cobrança: Unitário, M², M³ ou Metros.
         </p>
 
         <form
@@ -269,11 +267,13 @@ export default function ServicosPage() {
               <select
                 id="tipo_cobranca"
                 value={tipo_cobranca}
-                onChange={(e) => setTipoCobranca(e.target.value as "UNITARIO" | "M2")}
+                onChange={(e) => setTipoCobranca(e.target.value as "UNITARIO" | "M2" | "M3" | "METROS")}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
               >
                 <option value="UNITARIO">Unitário</option>
                 <option value="M2">M²</option>
+                <option value="M3">M³</option>
+                <option value="METROS">Metros</option>
               </select>
             </div>
             <div>
@@ -436,7 +436,7 @@ export default function ServicosPage() {
                     <tr key={s.id} className="border-b border-slate-100">
                       <td className="px-4 py-3">{s.descricao}</td>
                       <td className="px-4 py-3 text-slate-600">
-                        {s.tipo_cobranca === "M2" ? "M²" : "Unitário"}
+                        {s.tipo_cobranca === "M2" ? "M²" : s.tipo_cobranca === "M3" ? "M³" : s.tipo_cobranca === "METROS" ? "Metros" : "Unitário"}
                       </td>
                       <td className="px-4 py-3">{formatarPreco(s.precoBase)}</td>
                       <td className="px-4 py-3">
@@ -451,27 +451,11 @@ export default function ServicosPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => editar(s)}
-                          className="mr-2 text-slate-600 underline hover:text-slate-900"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => alternarAtivo(s)}
-                          className="mr-2 text-slate-600 underline hover:text-slate-900"
-                        >
-                          {s.servicoAtivo ? "Desativar" : "Ativar"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => excluir(s.id, s.descricao)}
-                          className="text-red-600 underline hover:text-red-800"
-                        >
-                          Excluir
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => editar(s)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900" title="Editar"><span aria-hidden>✎</span></button>
+                          <button type="button" onClick={() => alternarAtivo(s)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900" title={s.servicoAtivo ? "Desativar" : "Ativar"}><span aria-hidden>{s.servicoAtivo ? "⏸" : "⊕"}</span></button>
+                          <button type="button" onClick={() => excluir(s.id, s.descricao)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-red-600 transition-colors hover:bg-red-100 hover:text-red-800" title="Excluir"><span aria-hidden>🗑</span></button>
+                        </div>
                       </td>
                     </tr>
                   ))}

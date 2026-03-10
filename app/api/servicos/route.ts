@@ -41,9 +41,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!tipo_cobranca || !["UNITARIO", "M2"].includes(tipo_cobranca)) {
+    if (!tipo_cobranca || !["UNITARIO", "M2", "M3", "METROS"].includes(tipo_cobranca)) {
       return NextResponse.json(
-        { error: "Tipo de cobrança inválido (UNITARIO ou M2)" },
+        { error: "Tipo de cobrança inválido (UNITARIO, M2, M3 ou METROS)" },
         { status: 400 }
       );
     }

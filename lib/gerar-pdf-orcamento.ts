@@ -6,6 +6,7 @@ export type OrcamentoParaPdf = {
   endereco: string;
   data: string;
   incluiMaterial: boolean;
+  complemento?: string | null;
   cliente: { nome: string; afiliacao: string | null; telefone: string | null };
   materiais: {
     medidaMaterial: string | null;
@@ -39,7 +40,10 @@ function valorPorExtenso(valor: number): string {
 }
 
 function unidadeParaTexto(tipo: string | null | undefined): string {
-  return tipo === "M2" ? "m²" : "un";
+  if (tipo === "M2") return "m²";
+  if (tipo === "M3") return "m³";
+  if (tipo === "METROS") return "m";
+  return "un";
 }
 
 function construirLinhasServicos(orc: OrcamentoParaPdf): string[] {
@@ -147,6 +151,13 @@ export function gerarPdf(
   doc.font("Helvetica");
   doc.text(descricao, margem, y, { width: largura - 2 * margem });
   y = (doc as { y: number }).y + 10;
+  if (orc.complemento && orc.complemento.trim()) {
+    const complementoLimpo = orc.complemento.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    if (complementoLimpo) {
+      doc.text(complementoLimpo, margem, y, { width: largura - 2 * margem });
+      y = (doc as { y: number }).y + 10;
+    }
+  }
 
   doc.font("Helvetica-Bold");
   doc.text(`Valor da mão de Obra: ${totalMaoObra.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`, margem, y);

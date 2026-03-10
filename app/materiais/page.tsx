@@ -3,11 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutHeader } from "@/components/LayoutHeader";
+import { formatarPreco } from "@/lib/format";
+
+type TipoMedidaCatalogo = "UNITARIO" | "M2" | "M3" | "METROS";
 
 type MaterialCatalogo = {
   id: number;
   nome_material: string;
-  unidadeMedida: "UNITARIO" | "M2";
+  unidadeMedida: TipoMedidaCatalogo;
   precoUnitario: number;
   ativo: boolean;
 };
@@ -16,7 +19,7 @@ export default function MateriaisPage() {
   const [materiais, setMateriais] = useState<MaterialCatalogo[]>([]);
   const [loading, setLoading] = useState(true);
   const [nome_material, setNomeMaterial] = useState("");
-  const [unidadeMedida, setUnidadeMedida] = useState<"UNITARIO" | "M2">("UNITARIO");
+  const [unidadeMedida, setUnidadeMedida] = useState<TipoMedidaCatalogo>("UNITARIO");
   const [precoUnitario, setPrecoUnitario] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -139,9 +142,6 @@ export default function MateriaisPage() {
     }
   };
 
-  const formatarPreco = (valor: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
-
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <LayoutHeader paginaAtiva="catalogo" />
@@ -149,7 +149,7 @@ export default function MateriaisPage() {
       <main className="mx-auto max-w-5xl px-6 py-8">
         <h1 className="text-2xl font-semibold tracking-tight">Catálogo de materiais</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Cadastre materiais para usar nos orçamentos. Unidade: Unitário ou M².
+          Cadastre materiais para usar nos orçamentos. Unidade: Unitário, M², M³ ou Metros.
         </p>
 
         <form onSubmit={salvar} className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -174,11 +174,13 @@ export default function MateriaisPage() {
               <select
                 id="unidadeMedida"
                 value={unidadeMedida}
-                onChange={(e) => setUnidadeMedida(e.target.value as "UNITARIO" | "M2")}
+                onChange={(e) => setUnidadeMedida(e.target.value as TipoMedidaCatalogo)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
               >
                 <option value="UNITARIO">Unitário</option>
                 <option value="M2">M²</option>
+                <option value="M3">M³</option>
+                <option value="METROS">Metros</option>
               </select>
             </div>
             <div>
@@ -250,7 +252,7 @@ export default function MateriaisPage() {
                   {materiais.map((m) => (
                     <tr key={m.id} className="border-b border-slate-100">
                       <td className="px-4 py-3">{m.nome_material}</td>
-                      <td className="px-4 py-3 text-slate-600">{m.unidadeMedida === "M2" ? "M²" : "Unitário"}</td>
+                      <td className="px-4 py-3 text-slate-600">{m.unidadeMedida === "M2" ? "M²" : m.unidadeMedida === "M3" ? "M³" : m.unidadeMedida === "METROS" ? "Metros" : "Unitário"}</td>
                       <td className="px-4 py-3">{formatarPreco(m.precoUnitario)}</td>
                       <td className="px-4 py-3">
                         <span className={m.ativo ? "rounded-full bg-green-100 px-2 py-1 text-xs text-green-800" : "rounded-full bg-slate-200 px-2 py-1 text-xs text-slate-600"}>
@@ -258,9 +260,11 @@ export default function MateriaisPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <button type="button" onClick={() => editar(m)} className="mr-2 text-slate-600 underline hover:text-slate-900">Editar</button>
-                        <button type="button" onClick={() => alternarAtivo(m)} className="mr-2 text-slate-600 underline hover:text-slate-900">{m.ativo ? "Desativar" : "Ativar"}</button>
-                        <button type="button" onClick={() => excluir(m.id, m.nome_material)} className="text-red-600 underline hover:text-red-800">Excluir</button>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => editar(m)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900" title="Editar"><span aria-hidden>✎</span></button>
+                          <button type="button" onClick={() => alternarAtivo(m)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900" title={m.ativo ? "Desativar" : "Ativar"}><span aria-hidden>{m.ativo ? "⏸" : "⊕"}</span></button>
+                          <button type="button" onClick={() => excluir(m.id, m.nome_material)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-red-600 transition-colors hover:bg-red-100 hover:text-red-800" title="Excluir"><span aria-hidden>🗑</span></button>
+                        </div>
                       </td>
                     </tr>
                   ))}

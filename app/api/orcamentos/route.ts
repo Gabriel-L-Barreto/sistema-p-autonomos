@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sanitizarHtml, truncarTexto } from "@/lib/sanitize";
 
 export async function GET(request: NextRequest) {
   try {
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
       incluiMaterial,
       totalParcelas,
       status,
+      complemento,
     } = body;
 
     if (!clienteId || typeof clienteId !== "number") {
@@ -108,6 +110,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const enderecoLimpo = truncarTexto(endereco.trim());
+    const complementoLimpo = complemento && typeof complemento === "string"
+      ? sanitizarHtml(complemento.trim()) || null
+      : null;
+
     const cliente = await prisma.cliente.findUnique({
       where: { id: clienteId },
     });
@@ -122,12 +129,13 @@ export async function POST(request: NextRequest) {
     const orcamento = await prisma.orcamento.create({
       data: {
         clienteId,
-        endereco: endereco.trim(),
+        endereco: enderecoLimpo,
         data: data ? new Date(data) : new Date(),
         tempoEstimado: tempoEstimado || null,
         incluiMaterial: incluiMaterial || false,
         totalParcelas: totalParcelas || null,
         status: status || "CADASTRADO",
+        complemento: complementoLimpo,
       },
       include: {
         cliente: true,

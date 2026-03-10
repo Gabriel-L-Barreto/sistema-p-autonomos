@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { truncarTexto } from "@/lib/sanitize";
 
 export async function GET(
   _request: NextRequest,
@@ -45,9 +46,15 @@ export async function PUT(
     const { nome, afiliacao, telefone } = body;
 
     const data: { nome?: string; afiliacao?: string | null; telefone?: string | null } = {};
-    if (nome !== undefined) data.nome = typeof nome === "string" ? nome.trim() : String(nome);
-    if (afiliacao !== undefined) data.afiliacao = afiliacao === "" || afiliacao == null ? null : String(afiliacao).trim();
-    if (telefone !== undefined) data.telefone = telefone === "" || telefone == null ? null : String(telefone).trim();
+    if (nome !== undefined) {
+      const n = typeof nome === "string" ? nome.trim() : String(nome);
+      if (n === "") {
+        return NextResponse.json({ error: "Nome é obrigatório" }, { status: 400 });
+      }
+      data.nome = truncarTexto(n);
+    }
+    if (afiliacao !== undefined) data.afiliacao = afiliacao === "" || afiliacao == null ? null : truncarTexto(String(afiliacao).trim());
+    if (telefone !== undefined) data.telefone = telefone === "" || telefone == null ? null : truncarTexto(String(telefone).trim());
 
     const cliente = await prisma.cliente.update({
       where: { id: idNum },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { truncarTexto } from "@/lib/sanitize";
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,9 +44,9 @@ export async function POST(request: NextRequest) {
 
     const cliente = await prisma.cliente.create({
       data: {
-        nome: nome.trim(),
-        afiliacao: afiliacao?.trim() || null,
-        telefone: telefone?.trim() || null,
+        nome: truncarTexto(nome.trim()),
+        afiliacao: afiliacao && typeof afiliacao === "string" ? truncarTexto(afiliacao.trim()) || null : null,
+        telefone: telefone && typeof telefone === "string" ? truncarTexto(telefone.trim()) || null : null,
       },
     });
 

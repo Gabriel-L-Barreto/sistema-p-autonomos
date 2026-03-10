@@ -16,6 +16,8 @@ enum TipoPagamento {
 enum TipoMedida {
   UNITARIO
   M2
+  M3
+  METROS
 }
 
 enum Status {
@@ -89,6 +91,7 @@ model Orcamento {
   incluiMaterial Boolean            @default(false)
   totalParcelas  Float?
   status         Status             @default(CADASTRADO)
+  complemento    String?            @db.Text
   
   clienteId      Int
   cliente        Cliente            @relation(fields: [clienteId], references: [id], onDelete: Cascade)

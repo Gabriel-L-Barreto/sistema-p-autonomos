@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sanitizarHtml, truncarTexto } from "@/lib/sanitize";
 
 export async function GET(
   _request: NextRequest,
@@ -67,16 +68,22 @@ export async function PUT(
       incluiMaterial,
       totalParcelas,
       status,
+      complemento,
     } = body;
 
-    const dataUpdate: any = {};
+    const dataUpdate: Record<string, unknown> = {};
     if (clienteId !== undefined) dataUpdate.clienteId = clienteId;
-    if (endereco !== undefined) dataUpdate.endereco = endereco.trim();
+    if (endereco !== undefined) dataUpdate.endereco = truncarTexto(endereco.trim());
     if (data !== undefined) dataUpdate.data = new Date(data);
     if (tempoEstimado !== undefined) dataUpdate.tempoEstimado = tempoEstimado || null;
     if (incluiMaterial !== undefined) dataUpdate.incluiMaterial = incluiMaterial;
     if (totalParcelas !== undefined) dataUpdate.totalParcelas = totalParcelas || null;
     if (status !== undefined) dataUpdate.status = status;
+    if (complemento !== undefined) {
+      dataUpdate.complemento = complemento && typeof complemento === "string"
+        ? sanitizarHtml(complemento.trim()) || null
+        : null;
+    }
 
     const orcamento = await prisma.orcamento.update({
       where: { id: idNum },

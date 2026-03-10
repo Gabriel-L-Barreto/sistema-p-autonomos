@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { truncarTexto } from "@/lib/sanitize";
 
 export async function POST(
   request: NextRequest,
@@ -57,7 +58,7 @@ export async function POST(
         orcamentoId,
         materialId: materialId || null,
         medidaMaterial: medidaMaterial || null,
-        origemMaterial: origemMaterial?.trim() || null,
+        origemMaterial: origemMaterial && typeof origemMaterial === "string" ? truncarTexto(origemMaterial.trim()) || null : null,
         quantidade,
         precoUnitario,
       },

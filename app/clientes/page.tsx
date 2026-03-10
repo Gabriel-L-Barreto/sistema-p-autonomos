@@ -137,7 +137,7 @@ export default function ClientesPage() {
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                placeholder="Nome do cliente"
+                placeholder="para editar nome"
               />
             </div>
             <div>
@@ -150,7 +150,7 @@ export default function ClientesPage() {
                 value={afiliacao}
                 onChange={(e) => setAfiliacao(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                placeholder="Ex.: Empresa XYZ"
+                placeholder="para editar afiliação"
               />
             </div>
             <div>
@@ -163,7 +163,7 @@ export default function ClientesPage() {
                 value={telefone}
                 onChange={(e) => setTelefone(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                placeholder="(11) 99999-9999"
+                placeholder="para editar telefone"
               />
             </div>
           </div>
@@ -225,20 +225,24 @@ export default function ClientesPage() {
                       <td className="px-4 py-3 text-slate-600">{c.afiliacao ?? "—"}</td>
                       <td className="px-4 py-3 text-slate-600">{c.telefone ?? "—"}</td>
                       <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => editar(c)}
-                          className="mr-2 text-slate-600 underline hover:text-slate-900"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => excluir(c.id, c.nome)}
-                          className="text-red-600 underline hover:text-red-800"
-                        >
-                          Excluir
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => editar(c)}
+                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900"
+                            title="Editar"
+                          >
+                            <span aria-hidden>✎</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => excluir(c.id, c.nome)}
+                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-red-600 transition-colors hover:bg-red-100 hover:text-red-800"
+                            title="Excluir"
+                          >
+                            <span aria-hidden>🗑</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

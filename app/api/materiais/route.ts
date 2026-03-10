@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { truncarTexto } from "@/lib/sanitize";
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,9 +42,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!unidadeMedida || !["UNITARIO", "M2"].includes(unidadeMedida)) {
+    if (!unidadeMedida || !["UNITARIO", "M2", "M3", "METROS"].includes(unidadeMedida)) {
       return NextResponse.json(
-        { error: "Unidade de medida inválida (UNITARIO ou M2)" },
+        { error: "Unidade de medida inválida (UNITARIO, M2, M3 ou METROS)" },
         { status: 400 }
       );
     }
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     const material = await prisma.material.create({
       data: {
-        nome_material: nome_material.trim(),
+        nome_material: truncarTexto(nome_material.trim()),
         unidadeMedida,
         precoUnitario,
         ativo: true,

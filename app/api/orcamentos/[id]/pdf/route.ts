@@ -38,6 +38,7 @@ export async function GET(
       endereco: orcamento.endereco,
       data: orcamento.data.toISOString(),
       incluiMaterial: orcamento.incluiMaterial,
+      complemento: orcamento.complemento,
       cliente: {
         nome: orcamento.cliente.nome,
         afiliacao: orcamento.cliente.afiliacao,

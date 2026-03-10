@@ -12,6 +12,7 @@ import {
   calcularPorcentagemPaga,
   calcularValorRestante,
 } from "@/lib/orcamento";
+import { formatarData } from "@/lib/format";
 
 const LIMITE_POR_PAGINA = 25;
 
@@ -27,6 +28,7 @@ export default function OrcamentosListaPage() {
   const [busca, setBusca] = useState("");
   const [buscaDebounce, setBuscaDebounce] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [filtroAberto, setFiltroAberto] = useState(false);
   const [sortBy, setSortBy] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
@@ -147,34 +149,56 @@ export default function OrcamentosListaPage() {
         )}
 
         <section className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-sm font-semibold">Lista de orçamentos</h2>
-              <input
-                type="search"
-                value={busca}
-                onChange={(e) => {
-                  setBusca(e.target.value);
-                  setPagina(1);
-                }}
-                placeholder="Buscar por nº, cliente ou endereço..."
-                className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPagina(1);
-                }}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+            <h2 className="text-sm font-semibold">Lista de orçamentos</h2>
+            <div className="relative">
+              {filtroAberto && (
+                <div className="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">Busca</label>
+                      <input
+                        type="search"
+                        value={busca}
+                        onChange={(e) => {
+                          setBusca(e.target.value);
+                          setPagina(1);
+                        }}
+                        placeholder="para editar busca"
+                        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">Status</label>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value);
+                          setPagina(1);
+                        }}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                      >
+                        <option value="">Todos</option>
+                        {(Object.keys(LABELS_STATUS) as StatusOrcamento[]).map((s) => (
+                          <option key={s} value={s}>
+                            {LABELS_STATUS[s]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setFiltroAberto((v) => !v)}
+                className={`inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border text-xl transition-colors ${
+                  filtroAberto ? "border-slate-400 bg-slate-200 text-slate-800" : "border-slate-300 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
+                }`}
+                title="Filtros"
               >
-                <option value="">Todos os status</option>
-                {(Object.keys(LABELS_STATUS) as StatusOrcamento[]).map((s) => (
-                  <option key={s} value={s}>
-                    {LABELS_STATUS[s]}
-                  </option>
-                ))}
-              </select>
+                <span aria-hidden>☰</span>
+              </button>
             </div>
           </div>
           {loading ? (
@@ -226,6 +250,7 @@ export default function OrcamentosListaPage() {
                       </button>
                     </th>
                     <th className="px-4 py-3 font-medium text-slate-700">Valor total</th>
+                    <th className="px-4 py-3 font-medium text-slate-700">Valor restante</th>
                     <th className="px-4 py-3 font-medium text-slate-700">% Pago</th>
                     <th className="px-4 py-3">
                       <button
@@ -265,17 +290,19 @@ export default function OrcamentosListaPage() {
                       </td>
                       <td className="px-4 py-3">{orcamento.cliente.nome}</td>
                       <td className="px-4 py-3 text-slate-600">
-                        {new Date(orcamento.data).toLocaleDateString("pt-BR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })}
+                        {formatarData(orcamento.data)}
                       </td>
                       <td className="px-4 py-3 font-medium text-slate-900">
                         {new Intl.NumberFormat("pt-BR", {
                           style: "currency",
                           currency: "BRL",
                         }).format(valorTotal)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {new Intl.NumberFormat("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        }).format(valorRestante)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -306,56 +333,66 @@ export default function OrcamentosListaPage() {
                         </select>
                       </td>
                       <td className="px-4 py-3">
-                        {valorRestante > 0 && (
-                          isParcelasIguais ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm(`Confirmar recebimento da parcela ${proximaParcela}/${qtdParcelas}?\n\nEsta ação não pode ser desfeita.`)) {
-                                  receberParcelaIgual(orcamento.id, "PIX");
-                                }
-                              }}
-                              disabled={recebendoParcela === orcamento.id}
-                              className="mr-3 text-emerald-600 underline hover:text-emerald-800 disabled:opacity-50"
-                            >
-                              Receber parcela {proximaParcela}/{qtdParcelas}
-                            </button>
+                        <div className="flex items-center gap-1">
+                          {valorRestante > 0 ? (
+                            isParcelasIguais ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm(`Confirmar recebimento da parcela ${proximaParcela}/${qtdParcelas}?\n\nEsta ação não pode ser desfeita.`)) {
+                                    receberParcelaIgual(orcamento.id, "PIX");
+                                  }
+                                }}
+                                disabled={recebendoParcela === orcamento.id}
+                                className="inline-flex h-10 min-w-[2.75rem] flex-shrink-0 cursor-pointer items-center justify-center rounded text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-100 hover:text-emerald-800 disabled:opacity-50"
+                                title={`Parcela ${proximaParcela}/${qtdParcelas}`}
+                              >
+                                {proximaParcela}/{qtdParcelas}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setAbaterOrcamento(orcamento)}
+                                className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-emerald-600 transition-colors hover:bg-emerald-100 hover:text-emerald-800"
+                                title="Abater parcela"
+                              >
+                                <span aria-hidden>R$</span>
+                              </button>
+                            )
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => setAbaterOrcamento(orcamento)}
-                              className="mr-3 text-emerald-600 underline hover:text-emerald-800"
-                            >
-                              Abater parcela
-                            </button>
-                          )
-                        )}
-                        <a
-                          href={`/api/orcamentos/${orcamento.id}/pdf`}
-                          download={`Orcamento-${orcamento.id}-${orcamento.cliente.nome}.pdf`}
-                          className="mr-3 text-slate-600 underline hover:text-slate-900"
-                        >
-                          PDF Orçamento
-                        </a>
-                        <Link
-                          href={`/orcamentos/${orcamento.id}/ver`}
-                          className="mr-3 text-slate-600 underline hover:text-slate-900"
-                        >
-                          Visualizar
-                        </Link>
-                        <Link
-                          href={`/orcamentos/${orcamento.id}`}
-                          className="mr-3 text-slate-600 underline hover:text-slate-900"
-                        >
-                          Editar
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => excluirOrcamento(orcamento.id, orcamento.id)}
-                          className="text-red-600 underline hover:text-red-800"
-                        >
-                          Excluir
-                        </button>
+                            <span className="inline-flex h-10 w-10 flex-shrink-0" aria-hidden />
+                          )}
+                          <a
+                            href={`/api/orcamentos/${orcamento.id}/pdf`}
+                            download={`Orcamento-${orcamento.id}-${orcamento.cliente.nome}.pdf`}
+                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900"
+                            title="PDF"
+                          >
+                            <span aria-hidden>⎙</span>
+                          </a>
+                          <Link
+                            href={`/orcamentos/${orcamento.id}/ver`}
+                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900"
+                            title="Visualizar"
+                          >
+                            <span aria-hidden>👁</span>
+                          </Link>
+                          <Link
+                            href={`/orcamentos/${orcamento.id}`}
+                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900"
+                            title="Editar"
+                          >
+                            <span aria-hidden>✎</span>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => excluirOrcamento(orcamento.id, orcamento.id)}
+                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-red-600 transition-colors hover:bg-red-100 hover:text-red-800"
+                            title="Excluir"
+                          >
+                            <span aria-hidden>🗑</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

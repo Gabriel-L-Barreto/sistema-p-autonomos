@@ -8,6 +8,7 @@ import { ModalEditarPagamento } from "@/components/ModalEditarPagamento";
 import type { OrcamentoFull, PagamentoItem } from "@/lib/types";
 import { LABELS_STATUS, LABELS_FORMA_PAGAMENTO } from "@/lib/types";
 import { calcularValorTotal, calcularTotalPago, calcularPorcentagemPaga, calcularValorRestante } from "@/lib/orcamento";
+import { formatarData, formatarPreco } from "@/lib/format";
 
 export default function OrcamentoVerPage() {
   const params = useParams();
@@ -144,13 +145,7 @@ export default function OrcamentoVerPage() {
             </div>
             <div>
               <p className="text-xs font-medium text-slate-500">Data</p>
-              <p className="mt-0.5">
-                {new Date(orcamento.data).toLocaleDateString("pt-BR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })}
-              </p>
+              <p className="mt-0.5">{formatarData(orcamento.data)}</p>
             </div>
             <div>
               <p className="text-xs font-medium text-slate-500">Status</p>
@@ -163,7 +158,7 @@ export default function OrcamentoVerPage() {
             <div>
               <p className="text-xs font-medium text-slate-500">Valor total</p>
               <p className="mt-0.5 font-semibold">
-                {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valorTotal)}
+                {formatarPreco(valorTotal)}
               </p>
               <p className="text-xs text-slate-600">
                 {porcentagem}% pago (R$ {totalPago.toLocaleString("pt-BR")})
@@ -227,7 +222,7 @@ export default function OrcamentoVerPage() {
                   {pagamentos.map((pag) => (
                     <tr key={pag.id} className="border-b border-slate-100">
                       <td className="px-4 py-3 font-medium">
-                        {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(pag.valorRecebido)}
+                        {formatarPreco(pag.valorRecebido)}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {new Date(pag.data).toLocaleDateString("pt-BR", {
@@ -281,17 +276,6 @@ export default function OrcamentoVerPage() {
             onFechar={() => setEditandoPagamento(null)}
           />
         )}
-
-        <div className="mt-6 flex gap-2">
-          <a
-            href={`/api/orcamentos/${orcamento.id}/pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            PDF Orçamento
-          </a>
-        </div>
       </main>
     </div>
   );

@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { RichTextEditor } from "./RichTextEditor";
 import { AutocompleteCatalogo } from "./AutocompleteCatalogo";
+import { AutocompleteCliente } from "./AutocompleteCliente";
 import type {
   Cliente,
   Material,
@@ -11,7 +13,8 @@ import type {
   ServicoOrcamento,
   OrcamentoFull,
 } from "@/lib/types";
-import { LABELS_STATUS, LABELS_FORMA_PAGAMENTO } from "@/lib/types";
+import { LABELS_STATUS, LABELS_FORMA_PAGAMENTO, LABELS_MEDIDA } from "@/lib/types";
+import type { TipoMedida } from "@/lib/types";
 import { calcularValorTotal } from "@/lib/orcamento";
 
 export type { OrcamentoFull };
@@ -33,7 +36,9 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const [clienteId, setClienteId] = useState<number | "">("");
+  const [clienteBusca, setClienteBusca] = useState("");
   const [endereco, setEndereco] = useState("");
+  const [complemento, setComplemento] = useState("");
   const [data, setData] = useState(new Date().toISOString().split("T")[0]);
   const [tempoEstimado, setTempoEstimado] = useState<number | "">("");
   const [incluiMaterial, setIncluiMaterial] = useState(false);
@@ -48,7 +53,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
   const [materiaisOrcamento, setMateriaisOrcamento] = useState<MaterialOrcamento[]>([]);
   const [novoMaterial, setNovoMaterial] = useState({
     materialId: "" as number | "",
-    medidaMaterial: "UNITARIO" as "UNITARIO" | "M2",
+    medidaMaterial: "UNITARIO" as TipoMedida,
     origemMaterial: "",
     quantidade: "",
     precoUnitario: "",
@@ -57,7 +62,6 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
   const [servicosOrcamento, setServicosOrcamento] = useState<ServicoOrcamento[]>([]);
   const [novoServico, setNovoServico] = useState({
     servicoId: "" as number | "",
-    descricaoLivre: "",
     quantidade: "",
     valorMaoObra: "",
   });
@@ -68,7 +72,6 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
 
   const [servicoBusca, setServicoBusca] = useState("");
   const [servicoSelecionadoId, setServicoSelecionadoId] = useState<number | null>(null);
-  const [servicoAdicionarAoCatalogo, setServicoAdicionarAoCatalogo] = useState(false);
 
   const [sinapiMateriais, setSinapiMateriais] = useState<Material[]>([]);
   const [sinapiServicos, setSinapiServicos] = useState<Servico[]>([]);
@@ -117,7 +120,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
               servs.map((s: { id: number; codigo: string; descricao: string; tipo_cobranca: string; precoBase: number }) => ({
                 id: s.id,
                 descricao: s.descricao,
-                tipo_cobranca: s.tipo_cobranca as "UNITARIO" | "M2",
+                tipo_cobranca: s.tipo_cobranca as TipoMedida,
                 precoBase: s.precoBase,
                 codigoSinapi: s.codigo,
               }))
@@ -132,7 +135,9 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       }
       if (initialData) {
         setClienteId(initialData.clienteId);
+        setClienteBusca(initialData.cliente?.nome ?? "");
         setEndereco(initialData.endereco);
+        setComplemento(initialData.complemento ?? "");
         setData(initialData.data.split("T")[0]);
         setTempoEstimado(initialData.tempoEstimado ?? "");
         setIncluiMaterial(initialData.incluiMaterial);
@@ -280,12 +285,12 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
     setMateriaisOrcamento((prev) => prev.filter((_, i) => i !== index));
 
   const adicionarServico = async () => {
-    if (!novoServico.quantidade || !novoServico.valorMaoObra) {
-      setError("Quantidade e valor da mão de obra são obrigatórios");
+    if (!servicoSelecionadoId) {
+      setError("Selecione um serviço do catálogo. Use 'Cadastrar novo serviço' se não existir.");
       return;
     }
-    if (!servicoSelecionadoId && !servicoBusca.trim()) {
-      setError("Digite ou selecione um serviço.");
+    if (!novoServico.quantidade || !novoServico.valorMaoObra) {
+      setError("Quantidade e valor da mão de obra são obrigatórios");
       return;
     }
     const quantidadeNum = parseFloat(String(novoServico.quantidade).replace(",", "."));
@@ -299,37 +304,35 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       setError("Valor da mão de obra inválido");
       return;
     }
-    const descricaoLivre = novoServico.descricaoLivre || null;
 
-    if (servicoSelecionadoId) {
-      const servico = servicos.find((s) => s.id === servicoSelecionadoId);
-      const sinapiServ = sinapiServicos.find((s) => s.id === servicoSelecionadoId);
-      if (sinapiServ && servicoSelecionadoId < 0) {
-        const descricaoSinapi = `SINAPI MG - ${(sinapiServ as { codigoSinapi?: string }).codigoSinapi || ""} - ${sinapiServ.descricao}`;
-        setServicosOrcamento([
-          ...servicosOrcamento,
-          {
-            servicoId: null,
-            servico: null,
-            descricaoLivre: descricaoSinapi,
-            quantidade,
-            valorMaoObra,
-          },
-        ]);
-      } else {
-        setServicosOrcamento([
-          ...servicosOrcamento,
-          {
-            servicoId: servicoSelecionadoId,
-            servico: servico || null,
-            descricaoLivre,
-            quantidade,
-            valorMaoObra,
-          },
-        ]);
-        let materiaisParaAcrescentar: MaterialOrcamento[] = [];
-        try {
-          const resServ = await fetch(`/api/servicos/${servicoSelecionadoId}`);
+    const servico = servicos.find((s) => s.id === servicoSelecionadoId);
+    const sinapiServ = sinapiServicos.find((s) => s.id === servicoSelecionadoId);
+    if (sinapiServ && servicoSelecionadoId < 0) {
+      const descricaoSinapi = `SINAPI MG - ${(sinapiServ as { codigoSinapi?: string }).codigoSinapi || ""} - ${sinapiServ.descricao}`;
+      setServicosOrcamento([
+        ...servicosOrcamento,
+        {
+          servicoId: null,
+          servico: null,
+          descricaoLivre: descricaoSinapi,
+          quantidade,
+          valorMaoObra,
+        },
+      ]);
+    } else {
+      setServicosOrcamento([
+        ...servicosOrcamento,
+        {
+          servicoId: servicoSelecionadoId,
+          servico: servico || null,
+          descricaoLivre: null,
+          quantidade,
+          valorMaoObra,
+        },
+      ]);
+      let materiaisParaAcrescentar: MaterialOrcamento[] = [];
+      try {
+        const resServ = await fetch(`/api/servicos/${servicoSelecionadoId}`);
         if (resServ.ok) {
           const servComMateriais = await resServ.json();
           const materiaisVinculados = servComMateriais?.servicoMateriais ?? [];
@@ -369,69 +372,15 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
           return resultado;
         });
       }
-      }
-    } else if (servicoAdicionarAoCatalogo) {
-      const descricaoParaCatalogo = (descricaoLivre || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-      if (!descricaoParaCatalogo) {
-        setError("Preencha a descrição do serviço para cadastrar no catálogo.");
-        return;
-      }
-      try {
-        const resposta = await fetch("/api/servicos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            descricao: descricaoParaCatalogo,
-            tipo_cobranca: "UNITARIO",
-            precoBase: valorMaoObra,
-          }),
-        });
-        if (!resposta.ok) {
-          const dados = await resposta.json().catch(() => ({}));
-          throw new Error(dados.error || "Falha ao cadastrar no catálogo");
-        }
-        const servicoCriado = await resposta.json();
-        setServicos([...servicos, servicoCriado]);
-        setServicosOrcamento([
-          ...servicosOrcamento,
-          {
-            servicoId: servicoCriado.id,
-            servico: servicoCriado,
-            descricaoLivre,
-            quantidade,
-            valorMaoObra,
-          },
-        ]);
-      } catch (erro) {
-        setError(erro instanceof Error ? erro.message : "Erro ao cadastrar serviço no catálogo");
-        return;
-      }
-    } else {
-      if (!descricaoLivre || !descricaoLivre.trim()) {
-        setError("Descrição do serviço é obrigatória quando não está no catálogo.");
-        return;
-      }
-      setServicosOrcamento([
-        ...servicosOrcamento,
-        {
-          servicoId: null,
-          servico: null,
-          descricaoLivre,
-          quantidade,
-          valorMaoObra,
-        },
-      ]);
     }
 
     setNovoServico({
       servicoId: "" as number | "",
-      descricaoLivre: "",
       quantidade: "",
       valorMaoObra: "",
     });
     setServicoBusca("");
     setServicoSelecionadoId(null);
-    setServicoAdicionarAoCatalogo(false);
     setError(null);
   };
 
@@ -465,6 +414,10 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!clienteId) {
+      setError("Selecione um cliente");
+      return;
+    }
     if (!endereco.trim()) {
       setError("Endereço é obrigatório");
       return;
@@ -500,6 +453,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
             incluiMaterial,
             totalParcelas: totalParcelas || null,
             status,
+            complemento: complemento.trim() || null,
           }),
         });
         if (!resposta.ok) {
@@ -531,6 +485,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
             incluiMaterial,
             totalParcelas: totalParcelas || null,
             status,
+            complemento: complemento.trim() || null,
           }),
         });
         if (!resposta.ok) {
@@ -627,41 +582,35 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
         <h2 className="mb-4 text-lg font-semibold">Dados do Orçamento</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Cliente *
-            </label>
-            <select
-              value={clienteId}
-              onChange={(e) =>
-                setClienteId(e.target.value ? Number(e.target.value) : "")
-              }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              required
-            >
-              <option value="">Selecione um cliente</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                </option>
-              ))}
-            </select>
+            <label className="mb-1 block text-sm font-medium text-slate-600">Cliente *</label>
+            <AutocompleteCliente
+              clientes={clientes}
+              value={clienteBusca}
+              onChange={(v) => {
+                setClienteBusca(v);
+                if (!clientes.some((c) => c.nome === v)) setClienteId("");
+              }}
+              onSelect={(c) => {
+                setClienteId(c.id);
+                setClienteBusca(c.nome);
+              }}
+              selectedId={clienteId || ""}
+              placeholder="para editar cliente"
+            />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Endereço *
-            </label>
+            <label className="mb-1 block text-sm font-medium text-slate-600">Endereço *</label>
             <input
               type="text"
               value={endereco}
               onChange={(e) => setEndereco(e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              placeholder="para editar endereço"
               required
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Data
-            </label>
+            <label className="mb-1 block text-sm font-medium text-slate-600">Data</label>
             <input
               type="date"
               value={data}
@@ -669,10 +618,8 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Tempo Estimado (dias)
-            </label>
+          <div className="w-20">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Tempo est. (dias)</label>
             <input
               type="text"
               inputMode="numeric"
@@ -681,14 +628,12 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                 const v = e.target.value.replace(/[^0-9]/g, "");
                 setTempoEstimado(v ? Number(v) : "");
               }}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              placeholder="dias"
+              className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              placeholder=" "
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Total de Parcelas
-            </label>
+          <div className="w-20">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Parcelas</label>
             <input
               type="text"
               inputMode="numeric"
@@ -697,14 +642,12 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                 const v = e.target.value.replace(/[^0-9]/g, "");
                 setTotalParcelas(v ? Number(v) : "");
               }}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              placeholder="0"
+              className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              placeholder=" "
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Status
-            </label>
+            <label className="mb-1 block text-sm font-medium text-slate-600">Status</label>
             <select
               value={status}
               onChange={(e) =>
@@ -778,7 +721,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                 <span className="text-sm text-slate-700">Parcelas diferentes</span>
               </label>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-sm text-slate-500">
               {tipoParcelas === "iguais"
                 ? "O sistema divide o valor total em parcelas iguais. Cada parcela será registrada ao clicar em 'Receber parcela' na lista."
                 : "Pagamento único à vista. O sistema gera o comprovante de recebimento ao salvar."}
@@ -829,15 +772,11 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold">Materiais (Opcional)</h2>
-        <p className="mb-4 text-sm text-slate-600">
-          Digite para buscar no catálogo. Se não existir, use a opção para cadastrar no catálogo ou o item ficará só neste orçamento.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-          <div className="lg:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Material
-            </label>
+        <h2 className="mb-4 text-lg font-semibold">Materiais</h2>
+        <p className="mb-4 text-sm text-slate-500">Para editar materiais do orçamento</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-12">
+          <div className="col-span-2 sm:col-span-2 lg:col-span-3">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Material</label>
             <AutocompleteCatalogo
               tipo="material"
               busca={materialBusca}
@@ -855,7 +794,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                 const codigo = (mat as { codigoSinapi?: string }).codigoSinapi;
                 setNovoMaterial((prev) => ({
                   ...prev,
-                  medidaMaterial: mat.unidadeMedida as "UNITARIO" | "M2",
+                  medidaMaterial: (mat.unidadeMedida || "UNITARIO") as TipoMedida,
                   precoUnitario: String(mat.precoUnitario),
                   origemMaterial: isSinapi && codigo ? `SINAPI MG - ${codigo}` : prev.origemMaterial,
                 }));
@@ -871,59 +810,51 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
               id="material-busca"
             />
           </div>
-          <div className="lg:col-span-1">
-            <label className="mb-1 block text-xs font-medium text-slate-600">
-              Medida
-            </label>
+          <div className="col-span-2 sm:col-span-1 lg:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Medida</label>
             <select
               value={novoMaterial.medidaMaterial}
               onChange={(e) =>
                 setNovoMaterial({
                   ...novoMaterial,
-                  medidaMaterial: e.target.value as "UNITARIO" | "M2",
+                  medidaMaterial: e.target.value as TipoMedida,
                 })
               }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
             >
-              <option value="UNITARIO">Unitário</option>
-              <option value="M2">M²</option>
+              {(Object.keys(LABELS_MEDIDA) as TipoMedida[]).map((m) => (
+                <option key={m} value={m}>{LABELS_MEDIDA[m]}</option>
+              ))}
             </select>
           </div>
-          <div className="lg:col-span-1">
-            <label className="mb-1 block text-xs font-medium text-slate-600">
-              Origem
-            </label>
+          <div className="col-span-2 sm:col-span-1 lg:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Origem</label>
             <input
               type="text"
               value={novoMaterial.origemMaterial}
               onChange={(e) =>
                 setNovoMaterial({ ...novoMaterial, origemMaterial: e.target.value })
               }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              placeholder="Opcional"
+              className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              placeholder=" "
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Quantidade *
-            </label>
+          <div className="col-span-2 sm:col-span-1 lg:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Quantidade *</label>
             <input
               type="text"
               inputMode="numeric"
-              pattern="[0-9]*"
               value={novoMaterial.quantidade}
               onChange={(e) => {
-                const valor = e.target.value.replace(/[^0-9]/g, "");
-                setNovoMaterial({ ...novoMaterial, quantidade: valor });
+                const v = e.target.value.replace(/[^0-9]/g, "");
+                setNovoMaterial({ ...novoMaterial, quantidade: v });
               }}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              placeholder="Ex.: 5"
+              className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              placeholder=" "
             />
           </div>
-          <div className="lg:col-span-1">
-            <label className="mb-1 block text-xs font-medium text-slate-600">
-              Preço Unitário *
-            </label>
+          <div className="col-span-2 sm:col-span-1 lg:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Preço unit. *</label>
             <input
               type="text"
               inputMode="decimal"
@@ -932,19 +863,29 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                 const v = e.target.value.replace(/[^0-9,.]/g, "").replace(",", ".");
                 setNovoMaterial({ ...novoMaterial, precoUnitario: v });
               }}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full min-w-[5rem] rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
               placeholder="0,00"
             />
           </div>
+          <div className="col-span-2 sm:col-span-1 lg:col-span-1 flex flex-col justify-end">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Total</label>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">
+              R$ {materiaisOrcamento.length > 0 && incluiMaterial
+                ? materiaisOrcamento.reduce((s, m) => s + m.quantidade * m.precoUnitario, 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : "0,00"}
+            </div>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={adicionarMaterial}
-          className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          Adicionar Material
-        </button>
+        <div className="mt-4 flex items-center gap-4">
+          <button
+            type="button"
+            onClick={adicionarMaterial}
+            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            Adicionar Material
+          </button>
+        </div>
         {materiaisOrcamento.length > 0 && (
           <div className="mt-4 space-y-2">
             {materiaisOrcamento.map((mat, idx) => (
@@ -978,54 +919,44 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold">Serviços *</h2>
         <p className="mb-4 text-sm text-slate-600">
-          Digite para buscar serviços no catálogo. Se não existir, você pode cadastrar no catálogo ou criar um serviço só para este orçamento usando a caixa de descrição abaixo.
+          Busque e selecione serviços do catálogo. Para cadastrar um novo serviço, use o botão abaixo.
         </p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Serviço
-            </label>
+        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-12">
+          <div className="sm:col-span-6 lg:col-span-5">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Serviço cadastrado</label>
             <AutocompleteCatalogo
               tipo="servico"
               busca={servicoBusca}
               onBuscaChange={(v) => {
                 setServicoBusca(v);
                 setServicoSelecionadoId(null);
-                setServicoAdicionarAoCatalogo(false);
-                if (!v.trim()) {
-                  setNovoServico((prev) => ({ ...prev, descricaoLivre: "" }));
-                }
               }}
               selecionadoId={servicoSelecionadoId}
               onSelecionarCatalogo={(serv) => {
                 setServicoSelecionadoId(serv.id);
                 setServicoBusca(serv.descricao);
-                setServicoAdicionarAoCatalogo(false);
                 setNovoServico((prev) => ({
                   ...prev,
                   valorMaoObra: String(serv.precoBase),
-                  descricaoLivre: "",
-                }));
-              }}
-              onSelecionarCadastrarNoCatalogo={(nome) => {
-                setServicoBusca(nome);
-                setServicoAdicionarAoCatalogo(true);
-                setServicoSelecionadoId(null);
-                setNovoServico((prev) => ({
-                  ...prev,
-                  descricaoLivre: "",
                 }));
               }}
               itens={[...servicos, ...sinapiServicos]}
               getItemNome={(s) => s.descricao}
-              placeholder="Buscar serviço..."
+              placeholder="para editar serviço"
               id="servico-busca"
+              mostrarOpcaoCadastrar={false}
             />
           </div>
-          <div className="lg:col-span-1">
-            <label className="mb-1 block text-xs font-medium text-slate-600">
-              Quantidade *
-            </label>
+          <div className="sm:col-span-2 lg:col-span-2 flex flex-col justify-end">
+            <Link
+              href="/servicos"
+              className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              ＋ Cadastrar novo serviço
+            </Link>
+          </div>
+          <div className="sm:col-span-2 lg:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Quantidade *</label>
             <input
               type="text"
               inputMode="decimal"
@@ -1037,13 +968,11 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                 setNovoServico({ ...novoServico, quantidade: v });
               }}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              placeholder="Ex.: 3 ou 2,5"
+              placeholder=" "
             />
           </div>
-          <div className="lg:col-span-1">
-            <label className="mb-1 block text-xs font-medium text-slate-600">
-              Valor Mão de Obra *
-            </label>
+          <div className="sm:col-span-2 lg:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Valor Mão de Obra *</label>
             <input
               type="text"
               inputMode="decimal"
@@ -1056,29 +985,25 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
               placeholder="0,00"
             />
           </div>
-        </div>
-        {!servicoSelecionadoId && (
-          <div className="mt-4">
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Descrição do serviço
-              {servicoAdicionarAoCatalogo ? (
-                <span className="ml-1 text-xs font-normal text-slate-500">
-                  (será cadastrada no catálogo)
-                </span>
-              ) : (
-                <span className="ml-1 text-xs font-normal text-slate-500">
-                  (obrigatória - serviço só neste orçamento)
-                </span>
-              )}
-            </label>
-            <RichTextEditor
-              value={novoServico.descricaoLivre}
-              onChange={(value) =>
-                setNovoServico({ ...novoServico, descricaoLivre: value })
-              }
-            />
+          <div className="sm:col-span-2 lg:col-span-1 flex flex-col justify-end">
+            <label className="mb-1 block text-sm font-medium text-slate-600">Total serviços</label>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">
+              R$ {servicosOrcamento.length > 0
+                ? servicosOrcamento.reduce((s, srv) => s + srv.quantidade * srv.valorMaoObra, 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : "0,00"}
+            </div>
           </div>
-        )}
+        </div>
+
+        <div className="mt-6">
+          <label className="mb-1 block text-sm font-medium text-slate-600">
+            Complemento (texto extra no orçamento, sem valor)
+          </label>
+          <RichTextEditor
+            value={complemento}
+            onChange={setComplemento}
+          />
+        </div>
 
         <button
           type="button"
@@ -1107,21 +1032,13 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                               .replace(/<[^>]*>/g, " ")
                               .replace(/\s+/g, " ")
                               .trim()
-                              .slice(0, 80) || "—"
-                          : "—")}
+                              .slice(0, 80) || ""
+                          : "") || "Serviço"}
                     </div>
                     <div className="mt-1 text-sm text-slate-600">
                       {serv.quantidade} × R$ {serv.valorMaoObra.toFixed(2)} = R${" "}
                       {(serv.quantidade * serv.valorMaoObra).toFixed(2)}
                     </div>
-                    {serv.descricaoLivre && (
-                      <div
-                        className="mt-2 text-sm text-slate-700"
-                        dangerouslySetInnerHTML={{
-                          __html: serv.descricaoLivre,
-                        }}
-                      />
-                    )}
                   </div>
                   <button
                     type="button"

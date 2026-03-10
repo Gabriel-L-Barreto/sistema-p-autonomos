@@ -22,7 +22,7 @@ export default function CatalogoPage() {
           <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-sm font-semibold">Materiais</h2>
             <p className="mt-1 flex-1 text-xs text-slate-600">
-              Nome, unidade de medida (Unitário ou M²) e preço unitário. Itens ativos aparecem no orçamento.
+              Nome, unidade de medida (Unitário, M², M³ ou Metros) e preço unitário. Itens ativos aparecem no orçamento.
             </p>
             <Link
               href="/materiais"
@@ -35,7 +35,7 @@ export default function CatalogoPage() {
           <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-sm font-semibold">Serviços</h2>
             <p className="mt-1 flex-1 text-xs text-slate-600">
-              Descrição, tipo de cobrança (Unitário ou M²) e preço base. Serviços ativos aparecem no orçamento.
+              Descrição, tipo de cobrança (Unitário, M², M³ ou Metros) e preço base. Serviços ativos aparecem no orçamento.
             </p>
             <Link
               href="/servicos"

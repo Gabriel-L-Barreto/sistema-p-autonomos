@@ -44,7 +44,7 @@ export async function PUT(
     const { nome_material, unidadeMedida, precoUnitario, ativo } = body;
     const data: {
       nome_material?: string;
-      unidadeMedida?: "UNITARIO" | "M2";
+      unidadeMedida?: "UNITARIO" | "M2" | "M3" | "METROS";
       precoUnitario?: number;
       ativo?: boolean;
     } = {};
@@ -58,9 +58,9 @@ export async function PUT(
       data.nome_material = nome_material.trim();
     }
     if (unidadeMedida !== undefined) {
-      if (!["UNITARIO", "M2"].includes(unidadeMedida)) {
+      if (!["UNITARIO", "M2", "M3", "METROS"].includes(unidadeMedida)) {
         return NextResponse.json(
-          { error: "Unidade de medida inválida (UNITARIO ou M2)" },
+          { error: "Unidade de medida inválida (UNITARIO, M2, M3 ou METROS)" },
           { status: 400 }
         );
       }
