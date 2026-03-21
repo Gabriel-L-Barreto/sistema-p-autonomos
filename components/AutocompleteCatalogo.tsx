@@ -22,11 +22,14 @@ type Props<T extends ItemCatalogo> = {
   selecionadoId: number | null;
   onSelecionarCatalogo: (item: T) => void;
   onSelecionarCadastrarNoCatalogo?: (nome: string) => void;
+  /** Usar descrição digitada no orçamento sem catalogar (ex.: serviço livre) */
+  onSelecionarUsarSemCatalogar?: (nome: string) => void;
   itens: T[];
   getItemNome: (item: T) => string;
   placeholder?: string;
   id?: string;
   mostrarOpcaoCadastrar?: boolean;
+  mostrarOpcaoUsarSemCatalogar?: boolean;
 };
 
 export function AutocompleteCatalogo<T extends ItemCatalogo>(props: Props<T>) {
@@ -46,6 +49,7 @@ export function AutocompleteCatalogo<T extends ItemCatalogo>(props: Props<T>) {
   const temExato = busca.trim() && itens.some((item) => getItemNome(item).toLowerCase() === busca.trim().toLowerCase());
   const mostrarCadastrar = props.mostrarOpcaoCadastrar !== false && props.onSelecionarCadastrarNoCatalogo;
   const mostraOpcaoCadastrar = mostrarCadastrar && busca.trim().length > 0 && !temExato;
+  const mostrarUsarSemCatalogar = props.mostrarOpcaoUsarSemCatalogar && props.onSelecionarUsarSemCatalogar && busca.trim().length > 0 && !temExato;
 
   const [dropdownAberto, setDropdownAberto] = React.useState(false);
 
@@ -103,6 +107,18 @@ export function AutocompleteCatalogo<T extends ItemCatalogo>(props: Props<T>) {
               className="cursor-pointer border-t border-slate-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
             >
               ＋ Cadastrar &quot;{busca.trim()}&quot; no catálogo
+            </li>
+          )}
+          {mostrarUsarSemCatalogar && props.onSelecionarUsarSemCatalogar && (
+            <li
+              role="option"
+              onClick={() => {
+                props.onSelecionarUsarSemCatalogar?.(busca.trim());
+                setDropdownAberto(false);
+              }}
+              className="cursor-pointer border-t border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-100"
+            >
+              ＋ Usar &quot;{busca.trim()}&quot; como descrição (apenas neste orçamento)
             </li>
           )}
         </ul>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LayoutHeader } from "@/components/LayoutHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ModalEditarPagamento } from "@/components/ModalEditarPagamento";
 import type { OrcamentoFull, PagamentoItem } from "@/lib/types";
 import { LABELS_STATUS, LABELS_FORMA_PAGAMENTO } from "@/lib/types";
@@ -17,6 +18,8 @@ export default function OrcamentoVerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editandoPagamento, setEditandoPagamento] = useState<PagamentoItem | null>(null);
+  const [confirmExcluirPag, setConfirmExcluirPag] = useState<PagamentoItem | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const carregarOrcamento = async () => {
     const idNum = parseInt(id, 10);
@@ -89,14 +92,22 @@ export default function OrcamentoVerPage() {
   const porcentagem = calcularPorcentagemPaga(valorTotal, totalPago);
   const pagamentos = orcamento.pagamentos ?? [];
 
-  const excluirPagamento = async (pag: PagamentoItem) => {
-    if (!confirm(`Excluir o recebimento de ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(pag.valorRecebido)}?`)) return;
+  const excluirPagamento = (pag: PagamentoItem) => {
+    setActionError(null);
+    setConfirmExcluirPag(pag);
+  };
+
+  const executarExcluirPagamento = async () => {
+    if (!confirmExcluirPag) return;
+    const pag = confirmExcluirPag;
+    setConfirmExcluirPag(null);
+    setActionError(null);
     try {
       const res = await fetch(`/api/pagamentos/${pag.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Falha ao excluir");
       await carregarOrcamento();
     } catch (erro) {
-      alert(erro instanceof Error ? erro.message : "Erro ao excluir");
+      setActionError(erro instanceof Error ? erro.message : "Erro ao excluir");
     }
   };
 
@@ -205,6 +216,9 @@ export default function OrcamentoVerPage() {
 
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold">Comprovantes de recebimento</h2>
+          {actionError && (
+            <p className="mt-3 text-sm text-red-600">{actionError}</p>
+          )}
           {pagamentos.length === 0 ? (
             <p className="mt-4 text-sm text-slate-500">Nenhum comprovante registrado</p>
           ) : (
@@ -241,23 +255,26 @@ export default function OrcamentoVerPage() {
                           href={`/api/pagamentos/${pag.id}/pdf`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mr-3 text-slate-600 underline hover:text-slate-900"
+                          className="mr-3 inline-flex items-center gap-1.5 text-slate-600 underline hover:text-slate-900"
+                          title="PDF"
                         >
-                          PDF
+                          <span aria-hidden>⎙</span>
                         </a>
                         <button
                           type="button"
                           onClick={() => setEditandoPagamento(pag)}
-                          className="mr-3 text-slate-600 underline hover:text-slate-900"
+                          className="mr-3 inline-flex items-center gap-1.5 text-slate-600 underline hover:text-slate-900"
+                          title="Editar"
                         >
-                          Editar
+                          <span aria-hidden>✎</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => excluirPagamento(pag)}
-                          className="text-red-600 underline hover:text-red-800"
+                          className="inline-flex items-center gap-1.5 text-red-600 underline hover:text-red-800"
+                          title="Excluir"
                         >
-                          Excluir
+                          <span>🗑</span>
                         </button>
                       </td>
                     </tr>
@@ -267,6 +284,18 @@ export default function OrcamentoVerPage() {
             </div>
           )}
         </div>
+
+        {confirmExcluirPag && (
+          <ConfirmDialog
+            open
+            title="Excluir comprovante"
+            message={`Excluir o recebimento de ${formatarPreco(confirmExcluirPag.valorRecebido)}?`}
+            variant="danger"
+            confirmLabel="Excluir"
+            onConfirm={executarExcluirPagamento}
+            onCancel={() => setConfirmExcluirPag(null)}
+          />
+        )}
 
         {editandoPagamento && (
           <ModalEditarPagamento

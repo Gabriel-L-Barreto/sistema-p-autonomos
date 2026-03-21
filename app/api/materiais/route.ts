@@ -56,9 +56,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const nomeTrim = truncarTexto(nome_material.trim());
+    const existente = await prisma.material.findFirst({
+      where: { nome_material: { equals: nomeTrim, mode: "insensitive" } },
+    });
+    if (existente) {
+      return NextResponse.json(
+        { error: "Já existe um material com este nome no catálogo" },
+        { status: 409 }
+      );
+    }
+
     const material = await prisma.material.create({
       data: {
-        nome_material: truncarTexto(nome_material.trim()),
+        nome_material: nomeTrim,
         unidadeMedida,
         precoUnitario,
         ativo: true,

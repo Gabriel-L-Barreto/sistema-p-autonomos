@@ -7,7 +7,12 @@ import { LayoutHeader } from "@/components/LayoutHeader";
 type Config = {
   id: number;
   cabecalho: string;
+  rodape: string | null;
   logoUrl: string | null;
+  timbradoUrl: string | null;
+  cabecalhoCor: string | null;
+  cabecalhoLocal: string | null;
+  rodapeLocal: string | null;
   nomeAssinatura: string;
   cidadeEmissao: string | null;
 };
@@ -18,7 +23,12 @@ export default function ConfiguracoesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cabecalho, setCabecalho] = useState("");
+  const [rodape, setRodape] = useState("");
+  const [cabecalhoCor, setCabecalhoCor] = useState("#000000");
+  const [cabecalhoLocal, setCabecalhoLocal] = useState<"inicio" | "meio" | "fim">("meio");
+  const [rodapeLocal, setRodapeLocal] = useState<"inicio" | "meio" | "fim">("meio");
   const [logoUrl, setLogoUrl] = useState("");
+  const [timbradoUrl, setTimbradoUrl] = useState("");
   const [nomeAssinatura, setNomeAssinatura] = useState("");
   const [cidadeEmissao, setCidadeEmissao] = useState("");
 
@@ -31,6 +41,11 @@ export default function ConfiguracoesPage() {
         setConfig(data);
         setCabecalho(data.cabecalho ?? "");
         setLogoUrl(data.logoUrl ?? "");
+        setTimbradoUrl(data.timbradoUrl ?? "");
+        setCabecalhoCor(data.cabecalhoCor ?? "#000000");
+        setCabecalhoLocal(["inicio", "meio", "fim"].includes(data.cabecalhoLocal ?? "") ? (data.cabecalhoLocal as "inicio" | "meio" | "fim") : "meio");
+        setRodape(data.rodape ?? "");
+        setRodapeLocal(["inicio", "meio", "fim"].includes(data.rodapeLocal ?? "") ? (data.rodapeLocal as "inicio" | "meio" | "fim") : "meio");
         setNomeAssinatura(data.nomeAssinatura ?? "");
         setCidadeEmissao(data.cidadeEmissao ?? "");
       } catch (erro) {
@@ -53,6 +68,11 @@ export default function ConfiguracoesPage() {
         body: JSON.stringify({
           cabecalho: cabecalho.trim(),
           logoUrl: logoUrl.trim() || null,
+          timbradoUrl: timbradoUrl.trim() || null,
+          cabecalhoCor: cabecalhoCor || null,
+          cabecalhoLocal: cabecalhoLocal,
+          rodape: rodape.trim() || null,
+          rodapeLocal: rodapeLocal,
           nomeAssinatura: nomeAssinatura.trim(),
           cidadeEmissao: cidadeEmissao.trim() || null,
         }),
@@ -72,6 +92,14 @@ export default function ConfiguracoesPage() {
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
     reader.onload = () => setLogoUrl(String(reader.result));
+    reader.readAsDataURL(file);
+  };
+
+  const handleTimbradoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || file.type !== "image/png") return;
+    const reader = new FileReader();
+    reader.onload = () => setTimbradoUrl(String(reader.result));
     reader.readAsDataURL(file);
   };
 
@@ -114,18 +142,85 @@ export default function ConfiguracoesPage() {
         )}
 
         <form onSubmit={salvar} className="mt-6 space-y-6">
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-3 font-medium text-slate-900">Cabeçalho</h2>
+          <div className="rounded-xl border-2 border-slate-300 bg-white p-6 shadow-sm">
+            <h2 className="mb-2 font-medium text-slate-900">Cabeçalho do PDF</h2>
             <p className="mb-3 text-xs text-slate-500">
-              CNPJ, contatos (tel/email) e endereço. Uma linha por informação.
+              CNPJ, contatos (tel/email) e endereço. Digite cada informação em uma linha. Aparece no topo dos PDFs.
             </p>
+            <label htmlFor="cabecalho" className="mb-1 block text-sm font-semibold text-slate-700">
+              Caixa do cabeçalho (digite aqui):
+            </label>
             <textarea
+              id="cabecalho"
               value={cabecalho}
               onChange={(e) => setCabecalho(e.target.value)}
-              rows={5}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              rows={6}
+              className="block w-full rounded-lg border-2 border-slate-500 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:border-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
               placeholder={"CNPJ: 00.000.000/0001-00\nContatos: Tel: (00) 00000-0000 / Email: email@exemplo.com\nRua Exemplo, 123 - Bairro - Cidade/MG"}
+              aria-label="Caixa do cabeçalho - digite CNPJ, contatos e endereço"
             />
+            <div className="mt-3 flex items-center gap-4">
+              <label htmlFor="cabecalhoCor" className="text-sm font-medium text-slate-700">
+                Cor do cabeçalho
+              </label>
+              <input
+                id="cabecalhoCor"
+                type="color"
+                value={cabecalhoCor}
+                onChange={(e) => setCabecalhoCor(e.target.value)}
+                className="h-10 w-16 cursor-pointer rounded border border-slate-300"
+              />
+              <span className="text-xs text-slate-500">{cabecalhoCor}</span>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              <label htmlFor="cabecalhoLocal" className="text-sm font-medium text-slate-700">
+                Local do cabeçalho
+              </label>
+              <select
+                id="cabecalhoLocal"
+                value={cabecalhoLocal}
+                onChange={(e) => setCabecalhoLocal(e.target.value as "inicio" | "meio" | "fim")}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              >
+                <option value="inicio">Início (esquerda)</option>
+                <option value="meio">Meio (centro)</option>
+                <option value="fim">Fim (direita)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="rounded-xl border-2 border-slate-300 bg-white p-6 shadow-sm">
+            <h2 className="mb-2 font-medium text-slate-900">Rodapé do PDF</h2>
+            <p className="mb-3 text-xs text-slate-500">
+              Texto exibido no rodapé dos PDFs. Se vazio, será usado um texto padrão conforme o tipo de documento.
+            </p>
+            <label htmlFor="rodape" className="mb-1 block text-sm font-semibold text-slate-700">
+              Caixa do rodapé (digite aqui):
+            </label>
+            <textarea
+              id="rodape"
+              value={rodape}
+              onChange={(e) => setRodape(e.target.value)}
+              rows={4}
+              className="block w-full rounded-lg border-2 border-slate-500 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:border-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              placeholder="Ex.: Documento válido por 30 dias a partir da data de emissão. Quaisquer modificações serão cobradas à parte."
+              aria-label="Caixa do rodapé - texto exibido no fim dos PDFs"
+            />
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              <label htmlFor="rodapeLocal" className="text-sm font-medium text-slate-700">
+                Local do rodapé
+              </label>
+              <select
+                id="rodapeLocal"
+                value={rodapeLocal}
+                onChange={(e) => setRodapeLocal(e.target.value as "inicio" | "meio" | "fim")}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              >
+                <option value="inicio">Início (esquerda)</option>
+                <option value="meio">Meio (centro)</option>
+                <option value="fim">Fim (direita)</option>
+              </select>
+            </div>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -159,6 +254,41 @@ export default function ConfiguracoesPage() {
               placeholder="Ou cole URL da imagem"
               className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
             />
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-3 font-medium text-slate-900">Papel timbrado</h2>
+            <p className="mb-3 text-xs text-slate-500">
+              Envie uma imagem PNG para usar como fundo nos PDFs de orçamento e recebimento. Ocupa toda a página A4.
+            </p>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <input
+                  type="file"
+                  accept="image/png"
+                  onChange={handleTimbradoFile}
+                  className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:text-sm file:font-medium"
+                />
+              </div>
+              {timbradoUrl && (
+                <div className="h-16 w-24 overflow-hidden rounded border border-slate-200">
+                  <img
+                    src={timbradoUrl}
+                    alt="Preview timbrado"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+              )}
+            </div>
+            {timbradoUrl && (
+              <button
+                type="button"
+                onClick={() => setTimbradoUrl("")}
+                className="mt-2 text-xs text-slate-500 hover:text-red-600"
+              >
+                Remover timbrado
+              </button>
+            )}
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

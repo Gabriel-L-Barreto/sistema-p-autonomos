@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import { ModalAbaterParcela } from "@/components/ModalAbaterParcela";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { OrcamentoLista, StatusOrcamento } from "@/lib/types";
 import { LABELS_STATUS, STATUS_COLORS } from "@/lib/types";
 import {
@@ -22,6 +23,12 @@ export default function OrcamentosListaPage() {
   const [error, setError] = useState<string | null>(null);
   const [abaterOrcamento, setAbaterOrcamento] = useState<OrcamentoLista | null>(null);
   const [recebendoParcela, setRecebendoParcela] = useState<number | null>(null);
+  const [confirmExcluir, setConfirmExcluir] = useState<{ id: number; numero: number } | null>(null);
+  const [confirmParcela, setConfirmParcela] = useState<{
+    orcamentoId: number;
+    proximaParcela: number;
+    qtdParcelas: number;
+  } | null>(null);
   const [pagina, setPagina] = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
   const [total, setTotal] = useState(0);
@@ -76,7 +83,13 @@ export default function OrcamentosListaPage() {
   }, [busca]);
 
   const excluirOrcamento = async (id: number, numero: number) => {
-    if (!confirm(`Excluir o orçamento nº ${numero}?`)) return;
+    setConfirmExcluir({ id, numero });
+  };
+
+  const executarExcluirOrcamento = async () => {
+    if (!confirmExcluir) return;
+    const { id } = confirmExcluir;
+    setConfirmExcluir(null);
     try {
       const resposta = await fetch(`/api/orcamentos/${id}`, { method: "DELETE" });
       if (!resposta.ok) throw new Error("Falha ao excluir");
@@ -84,6 +97,17 @@ export default function OrcamentosListaPage() {
     } catch (erro) {
       setError(erro instanceof Error ? erro.message : "Erro ao excluir orçamento");
     }
+  };
+
+  const abrirConfirmParcela = (orc: OrcamentoLista, proxima: number, qtd: number) => {
+    setConfirmParcela({ orcamentoId: orc.id, proximaParcela: proxima, qtdParcelas: qtd });
+  };
+
+  const executarReceberParcela = async () => {
+    if (!confirmParcela) return;
+    const { orcamentoId } = confirmParcela;
+    setConfirmParcela(null);
+    await receberParcelaIgual(orcamentoId, "PIX");
   };
 
   const receberParcelaIgual = async (
@@ -151,7 +175,8 @@ export default function OrcamentosListaPage() {
         <section className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
             <h2 className="text-sm font-semibold">Lista de orçamentos</h2>
-            <div className="relative">
+            <div className="relative flex items-center gap-2">
+              <span className="text-sm text-slate-600">Filtrar por:</span>
               {filtroAberto && (
                 <div className="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
                   <div className="space-y-3">
@@ -164,7 +189,7 @@ export default function OrcamentosListaPage() {
                           setBusca(e.target.value);
                           setPagina(1);
                         }}
-                        placeholder="para editar busca"
+                        placeholder="Ex: número, nome ou data"
                         className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                       />
                     </div>
@@ -338,11 +363,13 @@ export default function OrcamentosListaPage() {
                             isParcelasIguais ? (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  if (confirm(`Confirmar recebimento da parcela ${proximaParcela}/${qtdParcelas}?\n\nEsta ação não pode ser desfeita.`)) {
-                                    receberParcelaIgual(orcamento.id, "PIX");
-                                  }
-                                }}
+                                onClick={() =>
+                                  setConfirmParcela({
+                                    orcamentoId: orcamento.id,
+                                    proximaParcela,
+                                    qtdParcelas,
+                                  })
+                                }
                                 disabled={recebendoParcela === orcamento.id}
                                 className="inline-flex h-10 min-w-[2.75rem] flex-shrink-0 cursor-pointer items-center justify-center rounded text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-100 hover:text-emerald-800 disabled:opacity-50"
                                 title={`Parcela ${proximaParcela}/${qtdParcelas}`}
@@ -386,7 +413,7 @@ export default function OrcamentosListaPage() {
                           </Link>
                           <button
                             type="button"
-                            onClick={() => excluirOrcamento(orcamento.id, orcamento.id)}
+                            onClick={() => excluirOrcamento(orcamento.id, Number(orcamento.id))}
                             className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-red-600 transition-colors hover:bg-red-100 hover:text-red-800"
                             title="Excluir"
                           >
@@ -428,6 +455,28 @@ export default function OrcamentosListaPage() {
           )}
         </section>
 
+        {confirmExcluir && (
+          <ConfirmDialog
+            open
+            title="Excluir orçamento"
+            message={`Excluir o orçamento nº ${confirmExcluir.numero}?`}
+            confirmLabel="Excluir"
+            variant="danger"
+            onConfirm={executarExcluirOrcamento}
+            onCancel={() => setConfirmExcluir(null)}
+          />
+        )}
+        {confirmParcela && (
+          <ConfirmDialog
+            open
+            title="Confirmar recebimento"
+            message={`Confirmar recebimento da parcela ${confirmParcela.proximaParcela}/${confirmParcela.qtdParcelas}?`}
+            confirmLabel="OK"
+            variant="default"
+            onConfirm={executarReceberParcela}
+            onCancel={() => setConfirmParcela(null)}
+          />
+        )}
         {abaterOrcamento && (
           <ModalAbaterParcela
             orcamentoId={abaterOrcamento.id}

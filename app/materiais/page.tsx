@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutHeader } from "@/components/LayoutHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { formatarPreco } from "@/lib/format";
 
 type TipoMedidaCatalogo = "UNITARIO" | "M2" | "M3" | "METROS";
@@ -24,6 +25,7 @@ export default function MateriaisPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmExcluir, setConfirmExcluir] = useState<{ id: number; nome: string } | null>(null);
   const [busca, setBusca] = useState("");
   const [buscaDebounce, setBuscaDebounce] = useState("");
 
@@ -130,8 +132,14 @@ export default function MateriaisPage() {
     }
   };
 
-  const excluir = async (id: number, nome: string) => {
-    if (!confirm(`Excluir o material "${nome}"?`)) return;
+  const excluir = (id: number, nome: string) => {
+    setConfirmExcluir({ id, nome });
+  };
+
+  const executarExcluir = async () => {
+    if (!confirmExcluir) return;
+    const { id } = confirmExcluir;
+    setConfirmExcluir(null);
     try {
       const resposta = await fetch(`/api/materiais/${id}`, { method: "DELETE" });
       if (!resposta.ok) throw new Error("Falha ao excluir");
@@ -277,6 +285,18 @@ export default function MateriaisPage() {
         <p className="mt-4 text-sm text-slate-500">
           <Link href="/catalogo" className="text-slate-600 underline hover:text-slate-900">← Voltar ao catálogo</Link>
         </p>
+
+        {confirmExcluir && (
+          <ConfirmDialog
+            open
+            title="Excluir material"
+            message={`Excluir o material "${confirmExcluir.nome}"?`}
+            variant="danger"
+            confirmLabel="Excluir"
+            onConfirm={executarExcluir}
+            onCancel={() => setConfirmExcluir(null)}
+          />
+        )}
       </main>
     </div>
   );

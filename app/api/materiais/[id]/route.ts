@@ -55,7 +55,20 @@ export async function PUT(
           { status: 400 }
         );
       }
-      data.nome_material = nome_material.trim();
+      const nomeTrim = nome_material.trim();
+      const existente = await prisma.material.findFirst({
+        where: {
+          nome_material: { equals: nomeTrim, mode: "insensitive" },
+          id: { not: idNum },
+        },
+      });
+      if (existente) {
+        return NextResponse.json(
+          { error: "Já existe um material com este nome no catálogo" },
+          { status: 409 }
+        );
+      }
+      data.nome_material = nomeTrim;
     }
     if (unidadeMedida !== undefined) {
       if (!["UNITARIO", "M2", "M3", "METROS"].includes(unidadeMedida)) {

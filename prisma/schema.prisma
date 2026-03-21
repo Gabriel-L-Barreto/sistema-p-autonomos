@@ -159,14 +159,19 @@ model Pagamento {
 }
 
 model EmpresaConfig {
-  id             Int      @id @default(autoincrement())
-  cabecalho      String   @db.Text
-  logoUrl        String?  @db.Text
-  nomeAssinatura String
-  cidadeEmissao  String?
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               Int      @id @default(autoincrement())
+  cabecalho        String   @db.Text
+  cabecalhoCor     String?  @db.VarChar(20)
+  cabecalhoLocal   String?  @db.VarChar(10) // inicio, meio, fim
+  rodape           String?  @db.Text
+  rodapeLocal      String?  @db.VarChar(10) // inicio, meio, fim
+  logoUrl          String?  @db.Text
+  timbradoUrl      String?  @db.Text
+  nomeAssinatura   String
+  cidadeEmissao    String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@map("empresa_config")
 }

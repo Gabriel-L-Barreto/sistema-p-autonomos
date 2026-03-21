@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutHeader } from "@/components/LayoutHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Cliente } from "@/lib/types";
 
 export default function ClientesPage() {
@@ -14,6 +15,7 @@ export default function ClientesPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmExcluir, setConfirmExcluir] = useState<{ id: number; nome: string } | null>(null);
   const [busca, setBusca] = useState("");
   const [buscaDebounce, setBuscaDebounce] = useState("");
 
@@ -100,8 +102,14 @@ export default function ClientesPage() {
     setError(null);
   };
 
-  const excluir = async (id: number, nomeCliente: string) => {
-    if (!confirm(`Excluir o cliente "${nomeCliente}"?`)) return;
+  const excluir = (id: number, nomeCliente: string) => {
+    setConfirmExcluir({ id, nome: nomeCliente });
+  };
+
+  const executarExcluir = async () => {
+    if (!confirmExcluir) return;
+    const { id } = confirmExcluir;
+    setConfirmExcluir(null);
     try {
       const resposta = await fetch(`/api/clientes/${id}`, { method: "DELETE" });
       if (!resposta.ok) throw new Error("Falha ao excluir");
@@ -137,7 +145,7 @@ export default function ClientesPage() {
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                placeholder="para editar nome"
+                placeholder="Ex: Maria, Nome da Empresa"
               />
             </div>
             <div>
@@ -150,7 +158,7 @@ export default function ClientesPage() {
                 value={afiliacao}
                 onChange={(e) => setAfiliacao(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                placeholder="para editar afiliação"
+                placeholder="Nome do responsável, caso tenha"
               />
             </div>
             <div>
@@ -163,7 +171,7 @@ export default function ClientesPage() {
                 value={telefone}
                 onChange={(e) => setTelefone(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                placeholder="para editar telefone"
+                placeholder="XX XXXXX-XXXX"
               />
             </div>
           </div>
@@ -251,6 +259,18 @@ export default function ClientesPage() {
             </div>
           )}
         </section>
+
+        {confirmExcluir && (
+          <ConfirmDialog
+            open
+            title="Excluir cliente"
+            message={`Excluir o cliente "${confirmExcluir.nome}"?`}
+            variant="danger"
+            confirmLabel="Excluir"
+            onConfirm={executarExcluir}
+            onCancel={() => setConfirmExcluir(null)}
+          />
+        )}
       </main>
     </div>
   );

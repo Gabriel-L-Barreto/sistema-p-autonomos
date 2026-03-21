@@ -57,6 +57,7 @@ export async function GET(
     const rec: RecebimentoParaPdf = {
       orcamentoId: orc.id,
       pagamentoId: pagamento.id,
+      endereco: orc.endereco,
       valorRecebido: pagamento.valorRecebido,
       formaPagamento: formaPagamentoLabel,
       data: pagamento.data.toISOString(),
@@ -79,13 +80,18 @@ export async function GET(
     };
 
     const chunks: Buffer[] = [];
-    const doc = new PDFDocument({ size: "A4", margin: 50 });
+    const doc = new PDFDocument({ size: "A4", margin: 0 });
 
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
 
     gerarPdfRecebimento(doc, rec, {
       cabecalho: config.cabecalho,
       logoUrl: config.logoUrl,
+      timbradoUrl: config.timbradoUrl ?? null,
+      cabecalhoCor: config.cabecalhoCor ?? null,
+      cabecalhoLocal: (config as Record<string, unknown>).cabecalhoLocal ?? null,
+      rodape: (config as Record<string, unknown>).rodape ?? null,
+      rodapeLocal: (config as Record<string, unknown>).rodapeLocal ?? null,
       nomeAssinatura: config.nomeAssinatura,
       cidadeEmissao: config.cidadeEmissao,
     });

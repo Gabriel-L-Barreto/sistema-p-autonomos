@@ -72,6 +72,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
 
   const [servicoBusca, setServicoBusca] = useState("");
   const [servicoSelecionadoId, setServicoSelecionadoId] = useState<number | null>(null);
+  const [servicoAdicionarAoCatalogo, setServicoAdicionarAoCatalogo] = useState(false);
 
   const [sinapiMateriais, setSinapiMateriais] = useState<Material[]>([]);
   const [sinapiServicos, setSinapiServicos] = useState<Servico[]>([]);
@@ -285,8 +286,8 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
     setMateriaisOrcamento((prev) => prev.filter((_, i) => i !== index));
 
   const adicionarServico = async () => {
-    if (!servicoSelecionadoId) {
-      setError("Selecione um serviço do catálogo. Use 'Cadastrar novo serviço' se não existir.");
+    if (!servicoSelecionadoId && !servicoBusca.trim()) {
+      setError("Digite ou selecione um serviço. Use a busca para escolher do catálogo ou digite uma descrição para adicionar apenas neste orçamento.");
       return;
     }
     if (!novoServico.quantidade || !novoServico.valorMaoObra) {
@@ -305,9 +306,61 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       return;
     }
 
+    if (servicoBusca.trim() && !servicoSelecionadoId) {
+      if (servicoAdicionarAoCatalogo) {
+        try {
+          const resposta = await fetch("/api/servicos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              descricao: servicoBusca.trim(),
+              tipo_cobranca: "UNITARIO",
+              precoBase: valorMaoObra,
+            }),
+          });
+          if (!resposta.ok) {
+            const dados = await resposta.json().catch(() => ({}));
+            throw new Error(dados.error || "Falha ao cadastrar no catálogo");
+          }
+          const servicoCriado = await resposta.json();
+          setServicos([...servicos, servicoCriado]);
+          setServicosOrcamento([
+            ...servicosOrcamento,
+            {
+              servicoId: servicoCriado.id,
+              servico: servicoCriado,
+              descricaoLivre: null,
+              quantidade,
+              valorMaoObra,
+            },
+          ]);
+        } catch (erro) {
+          setError(erro instanceof Error ? erro.message : "Erro ao cadastrar serviço no catálogo");
+          return;
+        }
+      } else {
+        setServicosOrcamento([
+          ...servicosOrcamento,
+          {
+            servicoId: null,
+            servico: null,
+            descricaoLivre: servicoBusca.trim(),
+            quantidade,
+            valorMaoObra,
+          },
+        ]);
+      }
+      setNovoServico({ servicoId: "" as number | "", quantidade: "", valorMaoObra: "" });
+      setServicoBusca("");
+      setServicoSelecionadoId(null);
+      setServicoAdicionarAoCatalogo(false);
+      setError(null);
+      return;
+    }
+
     const servico = servicos.find((s) => s.id === servicoSelecionadoId);
     const sinapiServ = sinapiServicos.find((s) => s.id === servicoSelecionadoId);
-    if (sinapiServ && servicoSelecionadoId < 0) {
+    if (sinapiServ && servicoSelecionadoId && servicoSelecionadoId < 0) {
       const descricaoSinapi = `SINAPI MG - ${(sinapiServ as { codigoSinapi?: string }).codigoSinapi || ""} - ${sinapiServ.descricao}`;
       setServicosOrcamento([
         ...servicosOrcamento,
@@ -374,13 +427,10 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       }
     }
 
-    setNovoServico({
-      servicoId: "" as number | "",
-      quantidade: "",
-      valorMaoObra: "",
-    });
+    setNovoServico({ servicoId: "" as number | "", quantidade: "", valorMaoObra: "" });
     setServicoBusca("");
     setServicoSelecionadoId(null);
+    setServicoAdicionarAoCatalogo(false);
     setError(null);
   };
 
@@ -579,117 +629,113 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold">Dados do Orçamento</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-600">Cliente *</label>
-            <AutocompleteCliente
-              clientes={clientes}
-              value={clienteBusca}
-              onChange={(v) => {
-                setClienteBusca(v);
-                if (!clientes.some((c) => c.nome === v)) setClienteId("");
-              }}
-              onSelect={(c) => {
-                setClienteId(c.id);
-                setClienteBusca(c.nome);
-              }}
-              selectedId={clienteId || ""}
-              placeholder="para editar cliente"
-            />
+        <h2 className="mb-4 text-lg font-semibold text-slate-800">Dados do Orçamento</h2>
+        <div className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-600">Cliente *</label>
+              <AutocompleteCliente
+                clientes={clientes}
+                value={clienteBusca}
+                onChange={(v) => {
+                  setClienteBusca(v);
+                  if (!clientes.some((c) => c.nome === v)) setClienteId("");
+                }}
+                onSelect={(c) => {
+                  setClienteId(c.id);
+                  setClienteBusca(c.nome);
+                }}
+                selectedId={clienteId || ""}
+                placeholder="Digite as iniciais ou clique na caixa"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-600">Endereço *</label>
+              <input
+                type="text"
+                value={endereco}
+                onChange={(e) => setEndereco(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                placeholder="Endereço completo e/ou cidade e estado"
+                required
+              />
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-600">Endereço *</label>
-            <input
-              type="text"
-              value={endereco}
-              onChange={(e) => setEndereco(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              placeholder="para editar endereço"
-              required
-            />
+          <div className="flex flex-wrap items-end gap-4 rounded-lg bg-slate-50/60 px-4 py-3">
+            <div className="min-w-[7rem]">
+              <label className="mb-1 block text-xs font-medium text-slate-500">Data</label>
+              <input
+                type="date"
+                value={data}
+                onChange={(e) => setData(e.target.value)}
+                className="w-full rounded-lg border-0 bg-white px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-slate-300"
+              />
+            </div>
+            <div className="min-w-[5.5rem]">
+              <label className="mb-1 block text-xs font-medium text-slate-500">Tempo est. (dias)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={tempoEstimado}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, "");
+                  setTempoEstimado(v ? Number(v) : "");
+                }}
+                className="w-full rounded-lg border-0 bg-white px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-slate-300"
+                placeholder="–"
+              />
+            </div>
+            <div className="min-w-[5.5rem]">
+              <label className="mb-1 block text-xs font-medium text-slate-500">Parcelas</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={totalParcelas}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, "");
+                  setTotalParcelas(v ? Number(v) : "");
+                }}
+                className="w-full rounded-lg border-0 bg-white px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-slate-300"
+                placeholder="–"
+              />
+            </div>
+            <div className="min-w-[10rem] flex-1">
+              <label className="mb-1 block text-xs font-medium text-slate-500">Status</label>
+              <select
+                value={status}
+                onChange={(e) =>
+                  setStatus(e.target.value as OrcamentoFull["status"])
+                }
+                className="w-full rounded-lg border-0 bg-white px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-slate-300"
+              >
+                {(Object.keys(LABELS_STATUS) as OrcamentoFull["status"][]).map((s) => (
+                  <option key={s} value={s}>
+                    {LABELS_STATUS[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-600">Data</label>
-            <input
-              type="date"
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-            />
-          </div>
-          <div className="w-20">
-            <label className="mb-1 block text-sm font-medium text-slate-600">Tempo est. (dias)</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={tempoEstimado}
-              onChange={(e) => {
-                const v = e.target.value.replace(/[^0-9]/g, "");
-                setTempoEstimado(v ? Number(v) : "");
-              }}
-              className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              placeholder=" "
-            />
-          </div>
-          <div className="w-20">
-            <label className="mb-1 block text-sm font-medium text-slate-600">Parcelas</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={totalParcelas}
-              onChange={(e) => {
-                const v = e.target.value.replace(/[^0-9]/g, "");
-                setTotalParcelas(v ? Number(v) : "");
-              }}
-              className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-              placeholder=" "
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-600">Status</label>
-            <select
-              value={status}
-              onChange={(e) =>
-                setStatus(e.target.value as OrcamentoFull["status"])
-              }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-            >
-              {(Object.keys(LABELS_STATUS) as OrcamentoFull["status"][]).map((s) => (
-                <option key={s} value={s}>
-                  {LABELS_STATUS[s]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="incluiMaterial"
-              checked={incluiMaterial}
-              onChange={(e) => setIncluiMaterial(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-            />
-            <label
-              htmlFor="incluiMaterial"
-              className="ml-2 text-sm text-slate-700"
-            >
-              Inclui Material
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                id="incluiMaterial"
+                checked={incluiMaterial}
+                onChange={(e) => setIncluiMaterial(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+              />
+              <span className="text-sm text-slate-700">Inclui Material</span>
             </label>
-          </div>
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="ehRecebimento"
-              checked={ehRecebimento}
-              onChange={(e) => setEhRecebimento(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-            />
-            <label
-              htmlFor="ehRecebimento"
-              className="ml-2 text-sm text-slate-700"
-            >
-              É recebimento (gerar orçamento e recebimento)
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                id="ehRecebimento"
+                checked={ehRecebimento}
+                onChange={(e) => setEhRecebimento(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+              />
+              <span className="text-sm text-slate-700">É recebimento (gerar orçamento e recebimento)</span>
             </label>
           </div>
         </div>
@@ -919,7 +965,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold">Serviços *</h2>
         <p className="mb-4 text-sm text-slate-600">
-          Busque e selecione serviços do catálogo. Para cadastrar um novo serviço, use o botão abaixo.
+          Busque e selecione serviços do catálogo. Para cadastrar um novo serviço no catálogo, use a opção que aparecer ao digitar. Caso contrário, o serviço será adicionado apenas a este orçamento.
         </p>
         <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-12">
           <div className="sm:col-span-6 lg:col-span-5">
@@ -930,6 +976,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
               onBuscaChange={(v) => {
                 setServicoBusca(v);
                 setServicoSelecionadoId(null);
+                setServicoAdicionarAoCatalogo(false);
               }}
               selecionadoId={servicoSelecionadoId}
               onSelecionarCatalogo={(serv) => {
@@ -942,18 +989,15 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
               }}
               itens={[...servicos, ...sinapiServicos]}
               getItemNome={(s) => s.descricao}
-              placeholder="para editar serviço"
+              placeholder="Buscar serviços..."
               id="servico-busca"
-              mostrarOpcaoCadastrar={false}
+              mostrarOpcaoCadastrar={true}
+              onSelecionarCadastrarNoCatalogo={(nome) => {
+                setServicoBusca(nome);
+                setServicoSelecionadoId(null);
+                setServicoAdicionarAoCatalogo(true);
+              }}
             />
-          </div>
-          <div className="sm:col-span-2 lg:col-span-2 flex flex-col justify-end">
-            <Link
-              href="/servicos"
-              className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              ＋ Cadastrar novo serviço
-            </Link>
           </div>
           <div className="sm:col-span-2 lg:col-span-2">
             <label className="mb-1 block text-sm font-medium text-slate-600">Quantidade *</label>
@@ -997,7 +1041,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
 
         <div className="mt-6">
           <label className="mb-1 block text-sm font-medium text-slate-600">
-            Complemento (texto extra no orçamento, sem valor)
+            Complemento (apenas no PDF, não é salvo no catálogo)
           </label>
           <RichTextEditor
             value={complemento}

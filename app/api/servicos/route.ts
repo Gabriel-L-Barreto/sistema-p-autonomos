@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { descricao, tipo_cobranca, precoBase } = body;
+    const { descricao, tipo_cobranca, unidade_medida, precoBase } = body;
+    const tipoCobranca = tipo_cobranca ?? unidade_medida;
 
     if (
       !descricao ||
@@ -41,12 +42,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!tipo_cobranca || !["UNITARIO", "M2", "M3", "METROS"].includes(tipo_cobranca)) {
+    const valoresValidos = ["UNITARIO", "M2", "M3", "METROS"];
+    if (!tipoCobranca || !valoresValidos.includes(String(tipoCobranca).toUpperCase())) {
       return NextResponse.json(
-        { error: "Tipo de cobrança inválido (UNITARIO, M2, M3 ou METROS)" },
+        { error: "Unidade de medida inválida. Selecione Unitário, M², M³ ou Metros." },
         { status: 400 }
       );
     }
+
+    const tipoCobrancaFinal = String(tipoCobranca).toUpperCase() as "UNITARIO" | "M2" | "M3" | "METROS";
 
     if (typeof precoBase !== "number" || precoBase < 0) {
       return NextResponse.json(
@@ -55,10 +59,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const descricaoTrim = descricao.trim();
+    const existente = await prisma.servico.findFirst({
+      where: { descricao: { equals: descricaoTrim, mode: "insensitive" } },
+    });
+    if (existente) {
+      return NextResponse.json(
+        { error: "Já existe um serviço com esta descrição no catálogo" },
+        { status: 409 }
+      );
+    }
+
     const servico = await prisma.servico.create({
       data: {
-        descricao: descricao.trim(),
-        tipo_cobranca,
+        descricao: descricaoTrim,
+        tipo_cobranca: tipoCobrancaFinal,
         precoBase,
         servicoAtivo: true,
       },

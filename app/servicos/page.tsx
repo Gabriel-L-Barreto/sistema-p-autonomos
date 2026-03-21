@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutHeader } from "@/components/LayoutHeader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { formatarPreco } from "@/lib/format";
 
 type ServicoCatalogo = {
   id: number;
   descricao: string;
-  tipo_cobranca: "UNITARIO" | "M2" | "M3" | "METROS";
+  tipo_cobranca?: "UNITARIO" | "M2" | "M3" | "METROS";
+  unidade_medida?: "UNITARIO" | "M2" | "M3" | "METROS";
   precoBase: number;
   servicoAtivo: boolean;
 };
@@ -33,7 +35,7 @@ export default function ServicosPage() {
   const [materiais, setMateriais] = useState<MaterialCatalogo[]>([]);
   const [loading, setLoading] = useState(true);
   const [descricao, setDescricao] = useState("");
-  const [tipo_cobranca, setTipoCobranca] = useState<"UNITARIO" | "M2" | "M3" | "METROS">("UNITARIO");
+  const [unidade_medida, setTipoCobranca] = useState<"UNITARIO" | "M2" | "M3" | "METROS">("UNITARIO");
   const [precoBase, setPrecoBase] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -44,6 +46,7 @@ export default function ServicosPage() {
 
   const [busca, setBusca] = useState("");
   const [buscaDebounce, setBuscaDebounce] = useState("");
+  const [confirmExcluir, setConfirmExcluir] = useState<{ id: number; desc: string } | null>(null);
 
   const carregarServicos = async () => {
     setLoading(true);
@@ -155,7 +158,7 @@ export default function ServicosPage() {
     try {
       const corpo = {
         descricao: descricao.trim(),
-        tipo_cobranca,
+        tipo_cobranca: unidade_medida,
         precoBase: preco,
       };
       if (editingId) {
@@ -199,7 +202,7 @@ export default function ServicosPage() {
 
   const editar = (s: ServicoCatalogo) => {
     setDescricao(s.descricao);
-    setTipoCobranca(s.tipo_cobranca);
+    setTipoCobranca(s.tipo_cobranca ?? s.unidade_medida ?? "UNITARIO");
     setPrecoBase(String(s.precoBase));
     setEditingId(s.id);
     setError(null);
@@ -220,8 +223,14 @@ export default function ServicosPage() {
     }
   };
 
-  const excluir = async (id: number, desc: string) => {
-    if (!confirm(`Excluir o serviço "${desc}"?`)) return;
+  const excluir = (id: number, desc: string) => {
+    setConfirmExcluir({ id, desc });
+  };
+
+  const executarExcluir = async () => {
+    if (!confirmExcluir) return;
+    const { id } = confirmExcluir;
+    setConfirmExcluir(null);
     try {
       const resposta = await fetch(`/api/servicos/${id}`, { method: "DELETE" });
       if (!resposta.ok) throw new Error("Falha ao excluir");
@@ -261,12 +270,12 @@ export default function ServicosPage() {
               />
             </div>
             <div>
-              <label htmlFor="tipo_cobranca" className="block text-sm font-medium text-slate-700">
-                Tipo de cobrança
+              <label htmlFor="unidade_medida" className="block text-sm font-medium text-slate-700">
+                Unidade de medida
               </label>
               <select
-                id="tipo_cobranca"
-                value={tipo_cobranca}
+                id="unidade_medida"
+                value={unidade_medida}
                 onChange={(e) => setTipoCobranca(e.target.value as "UNITARIO" | "M2" | "M3" | "METROS")}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
               >
@@ -436,7 +445,7 @@ export default function ServicosPage() {
                     <tr key={s.id} className="border-b border-slate-100">
                       <td className="px-4 py-3">{s.descricao}</td>
                       <td className="px-4 py-3 text-slate-600">
-                        {s.tipo_cobranca === "M2" ? "M²" : s.tipo_cobranca === "M3" ? "M³" : s.tipo_cobranca === "METROS" ? "Metros" : "Unitário"}
+                        {(s.tipo_cobranca ?? s.unidade_medida) === "M2" ? "M²" : (s.tipo_cobranca ?? s.unidade_medida) === "M3" ? "M³" : (s.tipo_cobranca ?? s.unidade_medida) === "METROS" ? "Metros" : "Unitário"}
                       </td>
                       <td className="px-4 py-3">{formatarPreco(s.precoBase)}</td>
                       <td className="px-4 py-3">
@@ -470,6 +479,18 @@ export default function ServicosPage() {
             ← Voltar ao catálogo
           </Link>
         </p>
+
+        {confirmExcluir && (
+          <ConfirmDialog
+            open
+            title="Excluir serviço"
+            message={`Excluir o serviço "${confirmExcluir.desc}"?`}
+            variant="danger"
+            confirmLabel="Excluir"
+            onConfirm={executarExcluir}
+            onCancel={() => setConfirmExcluir(null)}
+          />
+        )}
       </main>
     </div>
   );
