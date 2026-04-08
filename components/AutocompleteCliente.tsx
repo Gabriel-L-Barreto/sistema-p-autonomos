@@ -52,11 +52,11 @@ export function AutocompleteCliente({
         }}
         onFocus={() => setAberto(true)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+        className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
         autoComplete="off"
       />
       {aberto && (value.length > 0 || filtrados.length > 0) && (
-        <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] py-1 shadow-xl">
           {filtrados.slice(0, 20).map((c) => (
             <li
               key={c.id}
@@ -66,10 +66,10 @@ export function AutocompleteCliente({
                 onChange(c.nome);
                 setAberto(false);
               }}
-              className={`cursor-pointer px-3 py-2 text-sm hover:bg-slate-100 ${selectedId === c.id ? "bg-slate-100" : ""}`}
+              className={`cursor-pointer px-3 py-2 text-sm hover:bg-[var(--accent-soft)] ${selectedId === c.id ? "bg-[var(--accent-soft)]" : ""}`}
             >
               {c.nome}
-              {c.afiliacao && <span className="ml-2 text-slate-500 text-xs">({c.afiliacao})</span>}
+              {c.afiliacao && <span className="ml-2 text-[var(--muted)] text-xs">({c.afiliacao})</span>}
             </li>
           ))}
         </ul>

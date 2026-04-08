@@ -53,56 +53,56 @@ export function RichTextEditor({
   };
 
   return (
-    <div className="rounded-lg border border-slate-300">
-      <div className="flex gap-1 border-b border-slate-200 bg-slate-50 p-2">
+    <div className="rounded-lg border border-[var(--border)]">
+      <div className="flex gap-1 border-b border-[var(--border)] bg-[var(--surface-elevated)] p-2">
         <button
           type="button"
           onClick={() => aplicarFormato("bold")}
-          className="rounded px-2 py-1 text-sm font-bold hover:bg-slate-200"
+          className="rounded px-2 py-1 text-sm font-bold hover:bg-[var(--accent-soft)]"
           title="Negrito"
         >
-          B
+          Negrito
         </button>
         <button
           type="button"
           onClick={() => aplicarFormato("italic")}
-          className="rounded px-2 py-1 text-sm italic hover:bg-slate-200"
+          className="rounded px-2 py-1 text-sm italic hover:bg-[var(--accent-soft)]"
           title="Itálico"
         >
-          I
+          Itálico
         </button>
         <button
           type="button"
           onClick={() => aplicarFormato("ul")}
-          className="rounded px-2 py-1 text-sm hover:bg-slate-200"
+          className="rounded px-2 py-1 text-sm hover:bg-[var(--accent-soft)]"
           title="Lista não ordenada"
         >
-          •
+          Lista
         </button>
         <button
           type="button"
           onClick={() => aplicarFormato("ol")}
-          className="rounded px-2 py-1 text-sm hover:bg-slate-200"
+          className="rounded px-2 py-1 text-sm hover:bg-[var(--accent-soft)]"
           title="Lista ordenada"
         >
-          1.
+          Numerada
         </button>
         <button
           type="button"
           onClick={() => aplicarFormato("br")}
-          className="rounded px-2 py-1 text-sm hover:bg-slate-200"
+          className="rounded px-2 py-1 text-sm hover:bg-[var(--accent-soft)]"
           title="Quebra de linha"
         >
-          ¶
+          Quebra linha
         </button>
       </div>
       <textarea
         ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full resize-none rounded-b-lg border-0 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-500"
+        className="w-full resize-none rounded-b-lg border-0 bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
         rows={4}
-        placeholder="Digite a descrição do serviço..."
+        placeholder="Digite o complemento do orçamento..."
       />
     </div>
   );

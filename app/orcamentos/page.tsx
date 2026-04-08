@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import { ModalAbaterParcela } from "@/components/ModalAbaterParcela";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { OrcamentoLista, StatusOrcamento } from "@/lib/types";
-import { LABELS_STATUS, STATUS_COLORS } from "@/lib/types";
+import {
+  LABELS_STATUS,
+  LABELS_FORMA_PAGAMENTO,
+  STATUS_COLORS,
+} from "@/lib/types";
 import {
   calcularValorTotal,
   calcularTotalPago,
@@ -14,30 +19,73 @@ import {
   calcularValorRestante,
 } from "@/lib/orcamento";
 import { formatarData } from "@/lib/format";
+import {
+  IconFilter,
+  IconPdf,
+  IconEye,
+  IconPencil,
+  IconTrash,
+  IconCurrency,
+} from "@/components/Icons";
 
 const LIMITE_POR_PAGINA = 25;
 
-export default function OrcamentosListaPage() {
+type ConfigParcelasModal = {
+  orcamentoId: number;
+  clienteNome: string;
+  open: boolean;
+};
+
+type AlertaOrcamentos =
+  | "SEM_DEFINICAO_FINAL"
+  | "FINALIZADOS_NAO_QUITADOS"
+  | "EM_ANDAMENTO"
+  | "PENDENTES_RECEBIMENTO";
+
+function isStatusOrcamento(value: string): value is StatusOrcamento {
+  return ["CADASTRADO", "NAO_ACEITO", "ACEITO", "INICIALIZADO", "FINALIZADO"].includes(value);
+}
+
+function isAlertaOrcamentos(value: string): value is AlertaOrcamentos {
+  return ["SEM_DEFINICAO_FINAL", "FINALIZADOS_NAO_QUITADOS", "EM_ANDAMENTO", "PENDENTES_RECEBIMENTO"].includes(value);
+}
+
+function statusInicialPorAlerta(alerta: AlertaOrcamentos): string {
+  if (alerta === "SEM_DEFINICAO_FINAL") return "CADASTRADO";
+  if (alerta === "EM_ANDAMENTO") return "INICIALIZADO";
+  if (alerta === "FINALIZADOS_NAO_QUITADOS") return "FINALIZADO";
+  return "";
+}
+
+function OrcamentosListaContent() {
+  const searchParams = useSearchParams();
   const [orcamentos, setOrcamentos] = useState<OrcamentoLista[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [abaterOrcamento, setAbaterOrcamento] = useState<OrcamentoLista | null>(null);
   const [recebendoParcela, setRecebendoParcela] = useState<number | null>(null);
   const [confirmExcluir, setConfirmExcluir] = useState<{ id: number; numero: number } | null>(null);
-  const [confirmParcela, setConfirmParcela] = useState<{
-    orcamentoId: number;
-    proximaParcela: number;
-    qtdParcelas: number;
-  } | null>(null);
   const [pagina, setPagina] = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
   const [total, setTotal] = useState(0);
   const [busca, setBusca] = useState("");
   const [buscaDebounce, setBuscaDebounce] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [alertaFilter, setAlertaFilter] = useState<AlertaOrcamentos | "">("");
   const [filtroAberto, setFiltroAberto] = useState(false);
   const [sortBy, setSortBy] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [filtrosInicializados, setFiltrosInicializados] = useState(false);
+
+  const [configParcelasModal, setConfigParcelasModal] = useState<ConfigParcelasModal>({
+    orcamentoId: 0,
+    clienteNome: "",
+    open: false,
+  });
+  const [qtdParcelas, setQtdParcelas] = useState("3");
+  const [formaParcelas, setFormaParcelas] = useState<"DINHEIRO" | "PIX" | "CARTAO">("PIX");
+  const [salvandoParcelas, setSalvandoParcelas] = useState(false);
+  const [menuRecebimentoOrcamento, setMenuRecebimentoOrcamento] = useState<OrcamentoLista | null>(null);
 
   const toggleSort = (coluna: string) => {
     if (sortBy === coluna) {
@@ -60,6 +108,7 @@ export default function OrcamentosListaPage() {
       });
       if (buscaDebounce) params.set("q", buscaDebounce);
       if (statusFilter) params.set("status", statusFilter);
+      if (alertaFilter) params.set("alerta", alertaFilter);
       const resposta = await fetch(`/api/orcamentos?${params}`);
       if (!resposta.ok) throw new Error("Falha ao carregar orçamentos");
       const dados = await resposta.json();
@@ -74,17 +123,34 @@ export default function OrcamentosListaPage() {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    const statusUrl = params.get("status") ?? "";
+    const alertaUrl = params.get("alerta") ?? "";
+    const buscaUrl = params.get("q") ?? "";
+
+    if (isAlertaOrcamentos(alertaUrl)) {
+      setAlertaFilter(alertaUrl);
+      setStatusFilter(statusInicialPorAlerta(alertaUrl));
+    } else {
+      setAlertaFilter("");
+      setStatusFilter(isStatusOrcamento(statusUrl) ? statusUrl : "");
+    }
+
+    setBusca(buscaUrl);
+    setBuscaDebounce(buscaUrl);
+    setPagina(1);
+    setFiltrosInicializados(true);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!filtrosInicializados) return;
     carregarOrcamentos();
-  }, [pagina, buscaDebounce, statusFilter, sortBy, sortOrder]);
+  }, [pagina, buscaDebounce, statusFilter, alertaFilter, sortBy, sortOrder, filtrosInicializados]);
 
   useEffect(() => {
     const t = setTimeout(() => setBuscaDebounce(busca), 400);
     return () => clearTimeout(t);
   }, [busca]);
-
-  const excluirOrcamento = async (id: number, numero: number) => {
-    setConfirmExcluir({ id, numero });
-  };
 
   const executarExcluirOrcamento = async () => {
     if (!confirmExcluir) return;
@@ -99,15 +165,31 @@ export default function OrcamentosListaPage() {
     }
   };
 
-  const abrirConfirmParcela = (orc: OrcamentoLista, proxima: number, qtd: number) => {
-    setConfirmParcela({ orcamentoId: orc.id, proximaParcela: proxima, qtdParcelas: qtd });
-  };
-
-  const executarReceberParcela = async () => {
-    if (!confirmParcela) return;
-    const { orcamentoId } = confirmParcela;
-    setConfirmParcela(null);
-    await receberParcelaIgual(orcamentoId, "PIX");
+  const configurarParcelasIguais = async () => {
+    const qtd = parseInt(qtdParcelas, 10);
+    if (Number.isNaN(qtd) || qtd < 1) {
+      setError("Informe a quantidade de parcelas (mínimo 1).");
+      return;
+    }
+    setSalvandoParcelas(true);
+    try {
+      const res = await fetch(
+        `/api/orcamentos/${configParcelasModal.orcamentoId}/pagamentos/parcelas-iguais`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ qtdParcelas: qtd, formaPagamento: formaParcelas }),
+        }
+      );
+      const dados = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(dados.error || "Falha ao configurar parcelas");
+      setConfigParcelasModal({ orcamentoId: 0, clienteNome: "", open: false });
+      await carregarOrcamentos();
+    } catch (erro) {
+      setError(erro instanceof Error ? erro.message : "Erro ao configurar parcelas");
+    } finally {
+      setSalvandoParcelas(false);
+    }
   };
 
   const receberParcelaIgual = async (
@@ -116,14 +198,11 @@ export default function OrcamentosListaPage() {
   ) => {
     setRecebendoParcela(orcamentoId);
     try {
-      const res = await fetch(
-        `/api/orcamentos/${orcamentoId}/pagamentos/parcela-igual`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ formaPagamento }),
-        }
-      );
+      const res = await fetch(`/api/orcamentos/${orcamentoId}/pagamentos/parcela-igual`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formaPagamento }),
+      });
       const dados = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(dados.error || "Falha ao receber parcela");
       await carregarOrcamentos();
@@ -150,38 +229,38 @@ export default function OrcamentosListaPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="min-h-screen text-[var(--foreground)]">
       <LayoutHeader paginaAtiva="orcamentos" />
 
-      <main className="mx-auto max-w-7xl px-6 py-8">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Orçamentos</h1>
+            <p className="mt-1 text-sm text-[var(--muted)]">Gerencie orçamentos e recebimentos.</p>
           </div>
           <Link
             href="/orcamentos/novo"
-            className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="inline-flex items-center justify-center rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90"
           >
             Novo orçamento
           </Link>
         </div>
 
         {error && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="mt-4 rounded-lg border border-[var(--danger)]/50 bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">
             {error}
           </div>
         )}
 
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-            <h2 className="text-sm font-semibold">Lista de orçamentos</h2>
+        <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+            <h2 className="text-sm font-semibold text-[var(--muted)]">Listagem</h2>
             <div className="relative flex items-center gap-2">
-              <span className="text-sm text-slate-600">Filtrar por:</span>
               {filtroAberto && (
-                <div className="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-4 shadow-lg">
+                <div className="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4 shadow-xl">
                   <div className="space-y-3">
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">Busca</label>
+                      <label className="mb-1 block text-xs font-medium text-[var(--muted)]">Busca</label>
                       <input
                         type="search"
                         value={busca}
@@ -189,19 +268,20 @@ export default function OrcamentosListaPage() {
                           setBusca(e.target.value);
                           setPagina(1);
                         }}
-                        placeholder="Ex: número, nome ou data"
-                        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                        placeholder="Número, nome ou data"
+                        className="w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">Status</label>
+                      <label className="mb-1 block text-xs font-medium text-[var(--muted)]">Status</label>
                       <select
                         value={statusFilter}
                         onChange={(e) => {
                           setStatusFilter(e.target.value);
+                          setAlertaFilter("");
                           setPagina(1);
                         }}
-                        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                        className="w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm"
                       >
                         <option value="">Todos</option>
                         {(Object.keys(LABELS_STATUS) as StatusOrcamento[]).map((s) => (
@@ -217,76 +297,58 @@ export default function OrcamentosListaPage() {
               <button
                 type="button"
                 onClick={() => setFiltroAberto((v) => !v)}
-                className={`inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border text-xl transition-colors ${
-                  filtroAberto ? "border-slate-400 bg-slate-200 text-slate-800" : "border-slate-300 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border ${
+                  filtroAberto
+                    ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]"
+                    : "border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
                 }`}
                 title="Filtros"
               >
-                <span aria-hidden>☰</span>
+                <IconFilter className="h-5 w-5" />
               </button>
+              <span className="text-sm text-[var(--muted)]">Filtro</span>
             </div>
           </div>
+
           {loading ? (
-            <p className="p-6 text-sm text-slate-500">Carregando…</p>
+            <p className="p-6 text-sm text-[var(--muted)]">Carregando…</p>
           ) : orcamentos.length === 0 ? (
             <div className="p-8 text-center">
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-[var(--muted)]">
                 {buscaDebounce || statusFilter
                   ? "Nenhum orçamento encontrado para os filtros aplicados."
                   : "Nenhum orçamento cadastrado."}
               </p>
-              <Link
-                href="/orcamentos/novo"
-                className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-              >
-                Cadastrar orçamento
-              </Link>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
+                  <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)]">
                     <th className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort("id")}
-                        className="flex items-center gap-1 font-medium text-slate-700 hover:text-slate-900"
-                      >
+                      <button type="button" onClick={() => toggleSort("id")} className="font-medium">
                         Nº {sortBy === "id" && (sortOrder === "asc" ? "▲" : "▼")}
                       </button>
                     </th>
                     <th className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort("cliente")}
-                        className="flex items-center gap-1 font-medium text-slate-700 hover:text-slate-900"
-                      >
+                      <button type="button" onClick={() => toggleSort("cliente")} className="font-medium">
                         Cliente {sortBy === "cliente" && (sortOrder === "asc" ? "▲" : "▼")}
                       </button>
                     </th>
                     <th className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort("data")}
-                        className="flex items-center gap-1 font-medium text-slate-700 hover:text-slate-900"
-                      >
+                      <button type="button" onClick={() => toggleSort("data")} className="font-medium">
                         Data {sortBy === "data" && (sortOrder === "asc" ? "▲" : "▼")}
                       </button>
                     </th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Valor total</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Valor restante</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">% Pago</th>
+                    <th className="px-4 py-3 font-medium">Total</th>
+                    <th className="px-4 py-3 font-medium">Restante</th>
+                    <th className="px-4 py-3 font-medium">% pago</th>
                     <th className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => toggleSort("status")}
-                        className="flex items-center gap-1 font-medium text-slate-700 hover:text-slate-900"
-                      >
+                      <button type="button" onClick={() => toggleSort("status")} className="font-medium">
                         Status {sortBy === "status" && (sortOrder === "asc" ? "▲" : "▼")}
                       </button>
                     </th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Ações</th>
+                    <th className="px-4 py-3 font-medium" />
                   </tr>
                 </thead>
                 <tbody>
@@ -299,146 +361,122 @@ export default function OrcamentosListaPage() {
                     const totalPago = calcularTotalPago(orcamento.pagamentos ?? []);
                     const porcentagem = calcularPorcentagemPaga(valorTotal, totalPago);
                     const valorRestante = calcularValorRestante(valorTotal, totalPago);
-                    const totalParcelasConfig = orcamento.totalParcelas;
-                    const qtdParcelasBase =
-                      totalParcelasConfig != null && totalParcelasConfig >= 1
-                        ? Math.round(totalParcelasConfig)
-                        : 0;
                     const parcelasRecebidas = orcamento.pagamentos?.length ?? 0;
+                    const totalParcelas = orcamento.totalParcelas ?? 0;
                     const proximaParcela = parcelasRecebidas + 1;
-                    const qtdParcelas = Math.max(qtdParcelasBase, proximaParcela, 1);
-                    const isParcelasIguais = qtdParcelasBase > 0;
+                    const temParcelasIguais = totalParcelas > 0;
+
                     return (
-                    <tr key={orcamento.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-4 py-3">
-                        <span className="font-semibold text-slate-900">#{orcamento.id}</span>
-                      </td>
-                      <td className="px-4 py-3">{orcamento.cliente.nome}</td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {formatarData(orcamento.data)}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {new Intl.NumberFormat("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        }).format(valorTotal)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {new Intl.NumberFormat("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        }).format(valorRestante)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-16 overflow-hidden rounded-full bg-slate-200">
-                            <div
-                              className="h-full bg-emerald-500 transition-all"
-                              style={{ width: `${porcentagem}%` }}
-                            />
+                      <tr key={orcamento.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-elevated)]/40">
+                        <td className="px-4 py-3 font-semibold">#{orcamento.id}</td>
+                        <td className="px-4 py-3">{orcamento.cliente.nome}</td>
+                        <td className="px-4 py-3 text-[var(--muted)]">{formatarData(orcamento.data)}</td>
+                        <td className="px-4 py-3 font-medium">
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valorTotal)}
+                        </td>
+                        <td className="px-4 py-3 text-[var(--muted)]">
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valorRestante)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-16 overflow-hidden rounded-full bg-[var(--surface-elevated)]">
+                              <div className="h-full bg-[var(--success)]" style={{ width: `${porcentagem}%` }} />
+                            </div>
+                            <span className="text-xs text-[var(--muted)]">{porcentagem}%</span>
                           </div>
-                          <span className="text-xs text-slate-600">{porcentagem}%</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={orcamento.status}
-                          onChange={(e) =>
-                            alterarStatus(orcamento.id, e.target.value as StatusOrcamento)
-                          }
-                          className={`rounded-full border-0 px-2 py-1 text-xs font-medium focus:ring-2 focus:ring-slate-400 ${
-                            STATUS_COLORS[orcamento.status as StatusOrcamento] ?? "bg-slate-200 text-slate-800"
-                          }`}
-                        >
-                          {(Object.keys(LABELS_STATUS) as StatusOrcamento[]).map((s) => (
-                            <option key={s} value={s}>
-                              {LABELS_STATUS[s]}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          {valorRestante > 0 ? (
-                            isParcelasIguais ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setConfirmParcela({
-                                    orcamentoId: orcamento.id,
-                                    proximaParcela,
-                                    qtdParcelas,
-                                  })
-                                }
-                                disabled={recebendoParcela === orcamento.id}
-                                className="inline-flex h-10 min-w-[2.75rem] flex-shrink-0 cursor-pointer items-center justify-center rounded text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-100 hover:text-emerald-800 disabled:opacity-50"
-                                title={`Parcela ${proximaParcela}/${qtdParcelas}`}
-                              >
-                                {proximaParcela}/{qtdParcelas}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setAbaterOrcamento(orcamento)}
-                                className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-emerald-600 transition-colors hover:bg-emerald-100 hover:text-emerald-800"
-                                title="Abater parcela"
-                              >
-                                <span aria-hidden>R$</span>
-                              </button>
-                            )
-                          ) : (
-                            <span className="inline-flex h-10 w-10 flex-shrink-0" aria-hidden />
-                          )}
-                          <a
-                            href={`/api/orcamentos/${orcamento.id}/pdf`}
-                            download={`Orcamento-${orcamento.id}-${orcamento.cliente.nome}.pdf`}
-                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900"
-                            title="PDF"
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={orcamento.status}
+                            onChange={(e) => alterarStatus(orcamento.id, e.target.value as StatusOrcamento)}
+                            className={`rounded-lg border px-2 py-1 text-xs font-medium ${
+                              STATUS_COLORS[orcamento.status as StatusOrcamento]
+                            }`}
                           >
-                            <span aria-hidden>⎙</span>
-                          </a>
-                          <Link
-                            href={`/orcamentos/${orcamento.id}/ver`}
-                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900"
-                            title="Visualizar"
-                          >
-                            <span aria-hidden>👁</span>
-                          </Link>
-                          <Link
-                            href={`/orcamentos/${orcamento.id}`}
-                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900"
-                            title="Editar"
-                          >
-                            <span aria-hidden>✎</span>
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => excluirOrcamento(orcamento.id, Number(orcamento.id))}
-                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-red-600 transition-colors hover:bg-red-100 hover:text-red-800"
-                            title="Excluir"
-                          >
-                            <span aria-hidden>🗑</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
+                            {(Object.keys(LABELS_STATUS) as StatusOrcamento[]).map((s) => (
+                              <option key={s} value={s}>
+                                {LABELS_STATUS[s]}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            {valorRestante > 0 && (
+                              <>
+                                {!temParcelasIguais ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setMenuRecebimentoOrcamento(orcamento)}
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--success)] hover:bg-[var(--success-soft)]"
+                                    title="Recebimento"
+                                  >
+                                    <IconCurrency className="h-4 w-4" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => receberParcelaIgual(orcamento.id, "PIX")}
+                                    disabled={recebendoParcela === orcamento.id}
+                                    className="inline-flex h-9 items-center rounded-lg border border-[var(--success)]/50 px-2 text-xs text-[var(--success)] hover:bg-[var(--success-soft)] disabled:opacity-50"
+                                    title="Receber próxima parcela"
+                                  >
+                                    {proximaParcela}/{totalParcelas}
+                                  </button>
+                                )}
+                              </>
+                            )}
+                            <a
+                              href={`/api/orcamentos/${orcamento.id}/pdf`}
+                              download={`Orcamento-${orcamento.id}-${orcamento.cliente.nome}.pdf`}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                              title="PDF"
+                            >
+                              <IconPdf />
+                            </a>
+                            <Link
+                              href={`/orcamentos/${orcamento.id}/ver`}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                              title="Visualizar"
+                            >
+                              <IconEye />
+                            </Link>
+                            <Link
+                              href={`/orcamentos/${orcamento.id}`}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                              title="Editar"
+                            >
+                              <IconPencil />
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmExcluir({ id: orcamento.id, numero: Number(orcamento.id) })}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--danger)] hover:bg-[var(--danger-soft)]"
+                              title="Excluir"
+                            >
+                              <IconTrash />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
                   })}
                 </tbody>
               </table>
             </div>
           )}
+
           {!loading && orcamentos.length > 0 && (
-            <div className="flex flex-col gap-2 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-slate-600">
-                Página {pagina} de {totalPaginas} • {total} orçamento(s) no total
+            <div className="flex flex-col gap-2 border-t border-[var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-[var(--muted)]">
+                Página {pagina} de {totalPaginas} • {total} orçamento(s)
               </p>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setPagina((p) => Math.max(1, p - 1))}
                   disabled={pagina <= 1}
-                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:bg-[var(--surface-elevated)] disabled:opacity-50"
                 >
                   Anterior
                 </button>
@@ -446,7 +484,7 @@ export default function OrcamentosListaPage() {
                   type="button"
                   onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
                   disabled={pagina >= totalPaginas || totalPaginas <= 1}
-                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:bg-[var(--surface-elevated)] disabled:opacity-50"
                 >
                   Próxima
                 </button>
@@ -466,17 +504,112 @@ export default function OrcamentosListaPage() {
             onCancel={() => setConfirmExcluir(null)}
           />
         )}
-        {confirmParcela && (
-          <ConfirmDialog
-            open
-            title="Confirmar recebimento"
-            message={`Confirmar recebimento da parcela ${confirmParcela.proximaParcela}/${confirmParcela.qtdParcelas}?`}
-            confirmLabel="OK"
-            variant="default"
-            onConfirm={executarReceberParcela}
-            onCancel={() => setConfirmParcela(null)}
-          />
+
+        {configParcelasModal.open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-soft)] p-4">
+            <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+              <h3 className="text-lg font-semibold">Configurar parcelas iguais</h3>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Orçamento #{configParcelasModal.orcamentoId} — {configParcelasModal.clienteNome}
+              </p>
+
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-[var(--muted)]">Quantidade de parcelas</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={120}
+                    value={qtdParcelas}
+                    onChange={(e) => setQtdParcelas(e.target.value)}
+                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-[var(--muted)]">Forma padrão</label>
+                  <select
+                    value={formaParcelas}
+                    onChange={(e) => setFormaParcelas(e.target.value as "DINHEIRO" | "PIX" | "CARTAO")}
+                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+                  >
+                    {(Object.keys(LABELS_FORMA_PAGAMENTO) as ("DINHEIRO" | "PIX" | "CARTAO")[]).map((k) => (
+                      <option key={k} value={k}>
+                        {LABELS_FORMA_PAGAMENTO[k]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfigParcelasModal({ orcamentoId: 0, clienteNome: "", open: false })}
+                  className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={configurarParcelasIguais}
+                  disabled={salvandoParcelas}
+                  className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
+                >
+                  {salvandoParcelas ? "Salvando..." : "Salvar parcelas"}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
+
+        {menuRecebimentoOrcamento && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-soft)] p-4">
+            <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+              <h3 className="text-lg font-semibold">Recebimento</h3>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Orçamento #{menuRecebimentoOrcamento.id} — {menuRecebimentoOrcamento.cliente.nome}
+              </p>
+              <div className="mt-5 grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfigParcelasModal({
+                      orcamentoId: menuRecebimentoOrcamento.id,
+                      clienteNome: menuRecebimentoOrcamento.cliente.nome,
+                      open: true,
+                    });
+                    setMenuRecebimentoOrcamento(null);
+                  }}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-3 text-left text-sm hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]"
+                >
+                  <span className="block font-medium">Parcelas iguais</span>
+                  <span className="text-xs text-[var(--muted)]">Define o número de parcelas para receber em sequência.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAbaterOrcamento(menuRecebimentoOrcamento);
+                    setMenuRecebimentoOrcamento(null);
+                  }}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-3 text-left text-sm hover:border-[var(--success)] hover:bg-[var(--success-soft)]"
+                >
+                  <span className="block font-medium">Abater valor</span>
+                  <span className="text-xs text-[var(--muted)]">Registra recebimento de valor livre.</span>
+                </button>
+              </div>
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setMenuRecebimentoOrcamento(null)}
+                  className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {abaterOrcamento && (
           <ModalAbaterParcela
             orcamentoId={abaterOrcamento.id}
@@ -495,5 +628,13 @@ export default function OrcamentosListaPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function OrcamentosListaPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen text-[var(--foreground)]" />}>
+      <OrcamentosListaContent />
+    </Suspense>
   );
 }

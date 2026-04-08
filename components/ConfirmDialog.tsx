@@ -25,8 +25,8 @@ export function ConfirmDialog({
 
   const isDanger = variant === "danger";
   const btnConfirmClass = isDanger
-    ? "bg-red-600 hover:bg-red-700 text-white"
-    : "bg-slate-900 hover:bg-slate-800 text-white";
+    ? "bg-[var(--danger)] hover:opacity-90 text-[var(--on-accent)]"
+    : "bg-[var(--accent)] hover:opacity-90 text-[var(--on-accent)]";
 
   return (
     <div
@@ -35,32 +35,30 @@ export function ConfirmDialog({
       aria-modal="true"
       aria-labelledby="confirm-title"
     >
-      {/* Overlay */}
       <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-[var(--overlay)] backdrop-blur-sm"
         onClick={onCancel}
         aria-hidden="true"
       />
-      {/* Dialog */}
-      <div className="relative w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
-        <h2 id="confirm-title" className="text-lg font-semibold text-slate-900">
+      <div className="relative w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+        <h2 id="confirm-title" className="text-lg font-semibold text-[var(--foreground)]">
           {title}
         </h2>
-        <div className="mt-3 text-sm text-slate-600 [&>p+p]:mt-2">
+        <div className="mt-3 text-sm text-[var(--muted)] [&>p+p]:mt-2">
           {message}
         </div>
         <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 ${btnConfirmClass} ${isDanger ? "focus:ring-red-500" : "focus:ring-slate-500"}`}
+            className={`rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--background)] ${btnConfirmClass} ${isDanger ? "focus:ring-[var(--danger)]" : "focus:ring-[var(--accent)]"}`}
           >
             {confirmLabel}
           </button>

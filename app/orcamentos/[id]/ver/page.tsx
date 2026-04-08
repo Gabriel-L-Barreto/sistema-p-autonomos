@@ -7,7 +7,11 @@ import { LayoutHeader } from "@/components/LayoutHeader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ModalEditarPagamento } from "@/components/ModalEditarPagamento";
 import type { OrcamentoFull, PagamentoItem } from "@/lib/types";
-import { LABELS_STATUS, LABELS_FORMA_PAGAMENTO } from "@/lib/types";
+import {
+  LABELS_STATUS,
+  LABELS_FORMA_PAGAMENTO,
+  STATUS_COLORS,
+} from "@/lib/types";
 import { calcularValorTotal, calcularTotalPago, calcularPorcentagemPaga, calcularValorRestante } from "@/lib/orcamento";
 import { formatarData, formatarPreco } from "@/lib/format";
 
@@ -67,20 +71,17 @@ export default function OrcamentoVerPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <p className="text-sm text-slate-500">Carregando orçamento…</p>
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-[var(--muted)]">Carregando orçamento…</p>
       </div>
     );
   }
 
   if (error || !orcamento) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-100">
-        <p className="text-sm text-red-600">{error || "Orçamento não encontrado"}</p>
-        <Link
-          href="/orcamentos"
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+        <p className="text-sm text-[var(--danger)]">{error || "Orçamento não encontrado"}</p>
+        <Link href="/orcamentos" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90">
           Voltar para lista
         </Link>
       </div>
@@ -118,78 +119,84 @@ export default function OrcamentoVerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
-      <LayoutHeader paginaAtiva="orcamentos" />
+    <div className="min-h-screen text-[var(--foreground)]">
+      <LayoutHeader paginaAtiva="orcamentos" breadcrumb={[
+        { label: "Orçamentos", href: "/orcamentos" },
+        { label: `#${orcamento.id}` },
+      ]} />
 
-      <main className="mx-auto max-w-4xl px-6 py-8">
+      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <div className="mb-6 flex flex-wrap items-center gap-4">
-          <Link href="/orcamentos" className="text-sm text-slate-600 hover:text-slate-900">
+          <Link href="/orcamentos" className="text-sm text-[var(--muted)] hover:text-[var(--accent)]">
             ← Voltar para lista
           </Link>
-          <Link
-            href={`/orcamentos/${orcamento.id}`}
-            className="ml-auto rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
+          <Link href={`/orcamentos/${orcamento.id}`} className="ml-auto rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-elevated)]">
             Editar
           </Link>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6">
           <h1 className="text-2xl font-semibold tracking-tight">
             Orçamento nº {orcamento.id}
           </h1>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <p className="text-xs font-medium text-slate-500">Cliente</p>
+              <p className="text-xs font-medium text-[var(--muted)]">Cliente</p>
               <p className="mt-0.5 font-medium">{orcamento.cliente.nome}</p>
               {orcamento.cliente.afiliacao && (
-                <p className="text-sm text-slate-600">{orcamento.cliente.afiliacao}</p>
+                <p className="text-sm text-[var(--muted)]">{orcamento.cliente.afiliacao}</p>
               )}
               {orcamento.cliente.telefone && (
-                <p className="text-sm text-slate-600">{orcamento.cliente.telefone}</p>
+                <p className="text-sm text-[var(--muted)]">{orcamento.cliente.telefone}</p>
               )}
             </div>
             <div>
-              <p className="text-xs font-medium text-slate-500">Endereço</p>
+              <p className="text-xs font-medium text-[var(--muted)]">Endereço</p>
               <p className="mt-0.5">{orcamento.endereco}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-slate-500">Data</p>
+              <p className="text-xs font-medium text-[var(--muted)]">Data</p>
               <p className="mt-0.5">{formatarData(orcamento.data)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-slate-500">Status</p>
-              <p className="mt-0.5">{LABELS_STATUS[orcamento.status]}</p>
+              <p className="text-xs font-medium text-[var(--muted)]">Status</p>
+              <span
+                className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                  STATUS_COLORS[orcamento.status]
+                }`}
+              >
+                {LABELS_STATUS[orcamento.status]}
+              </span>
             </div>
             <div>
-              <p className="text-xs font-medium text-slate-500">Inclui material</p>
+              <p className="text-xs font-medium text-[var(--muted)]">Inclui material</p>
               <p className="mt-0.5">{orcamento.incluiMaterial ? "Sim" : "Não"}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-slate-500">Valor total</p>
+              <p className="text-xs font-medium text-[var(--muted)]">Valor total</p>
               <p className="mt-0.5 font-semibold">
                 {formatarPreco(valorTotal)}
               </p>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-[var(--muted)]">
                 {porcentagem}% pago (R$ {totalPago.toLocaleString("pt-BR")})
               </p>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
           <h2 className="text-lg font-semibold">Serviços</h2>
           {orcamento.servicos.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500">Nenhum serviço</p>
+            <p className="mt-4 text-sm text-[var(--muted)]">Nenhum serviço</p>
           ) : (
             <ul className="mt-4 space-y-3">
               {orcamento.servicos.map((s, idx) => (
-                <li key={idx} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <li key={idx} className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
                   <p className="font-medium">
                     {s.servico?.descricao || (s.descricaoLivre ? s.descricaoLivre.replace(/<[^>]*>/g, " ").trim().slice(0, 100) : "—")}
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-[var(--muted)]">
                     {s.quantidade} × R$ {s.valorMaoObra.toFixed(2)} = R$ {(s.quantidade * s.valorMaoObra).toFixed(2)}
                   </p>
                 </li>
@@ -199,13 +206,13 @@ export default function OrcamentoVerPage() {
         </div>
 
         {orcamento.incluiMaterial && orcamento.materiais.length > 0 && (
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
             <h2 className="text-lg font-semibold">Materiais</h2>
             <ul className="mt-4 space-y-3">
               {orcamento.materiais.map((m, idx) => (
-                <li key={idx} className="flex justify-between rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <li key={idx} className="flex justify-between rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
                   <span>{m.material?.nome_material || m.origemMaterial || "Material"}</span>
-                  <span className="text-slate-600">
+                  <span className="text-[var(--muted)]">
                     {m.quantidade} × R$ {m.precoUnitario.toFixed(2)} = R$ {(m.quantidade * m.precoUnitario).toFixed(2)}
                   </span>
                 </li>
@@ -214,31 +221,31 @@ export default function OrcamentoVerPage() {
           </div>
         )}
 
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
           <h2 className="text-lg font-semibold">Comprovantes de recebimento</h2>
           {actionError && (
-            <p className="mt-3 text-sm text-red-600">{actionError}</p>
+            <p className="mt-3 text-sm text-[var(--danger)]">{actionError}</p>
           )}
           {pagamentos.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500">Nenhum comprovante registrado</p>
+            <p className="mt-4 text-sm text-[var(--muted)]">Nenhum comprovante registrado</p>
           ) : (
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-4 py-3 font-medium text-slate-700">Valor</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Data</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Forma</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Ações</th>
+                  <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)]">
+                    <th className="px-4 py-3 font-medium text-[var(--foreground)]">Valor</th>
+                    <th className="px-4 py-3 font-medium text-[var(--foreground)]">Data</th>
+                    <th className="px-4 py-3 font-medium text-[var(--foreground)]">Forma</th>
+                    <th className="px-4 py-3 font-medium text-[var(--foreground)]">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pagamentos.map((pag) => (
-                    <tr key={pag.id} className="border-b border-slate-100">
+                    <tr key={pag.id} className="border-b border-[var(--border)]">
                       <td className="px-4 py-3 font-medium">
                         {formatarPreco(pag.valorRecebido)}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-[var(--muted)]">
                         {new Date(pag.data).toLocaleDateString("pt-BR", {
                           day: "2-digit",
                           month: "2-digit",
@@ -247,7 +254,7 @@ export default function OrcamentoVerPage() {
                           minute: "2-digit",
                         })}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-[var(--muted)]">
                         {LABELS_FORMA_PAGAMENTO[pag.formaPagamento as keyof typeof LABELS_FORMA_PAGAMENTO] ?? pag.formaPagamento}
                       </td>
                       <td className="px-4 py-3">
@@ -255,7 +262,7 @@ export default function OrcamentoVerPage() {
                           href={`/api/pagamentos/${pag.id}/pdf`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mr-3 inline-flex items-center gap-1.5 text-slate-600 underline hover:text-slate-900"
+                          className="mr-3 inline-flex items-center gap-1.5 text-[var(--muted)] hover:text-[var(--accent)]"
                           title="PDF"
                         >
                           <span aria-hidden>⎙</span>
@@ -263,7 +270,7 @@ export default function OrcamentoVerPage() {
                         <button
                           type="button"
                           onClick={() => setEditandoPagamento(pag)}
-                          className="mr-3 inline-flex items-center gap-1.5 text-slate-600 underline hover:text-slate-900"
+                          className="mr-3 inline-flex items-center gap-1.5 text-[var(--muted)] hover:text-[var(--accent)]"
                           title="Editar"
                         >
                           <span aria-hidden>✎</span>
@@ -271,7 +278,7 @@ export default function OrcamentoVerPage() {
                         <button
                           type="button"
                           onClick={() => excluirPagamento(pag)}
-                          className="inline-flex items-center gap-1.5 text-red-600 underline hover:text-red-800"
+                          className="inline-flex items-center gap-1.5 text-[var(--danger)] hover:opacity-80"
                           title="Excluir"
                         >
                           <span>🗑</span>

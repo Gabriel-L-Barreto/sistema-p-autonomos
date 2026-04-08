@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { OrcamentoForm } from "@/components/OrcamentoForm";
 import { LayoutHeader } from "@/components/LayoutHeader";
+import { IconArrowLeft } from "@/components/Icons";
 import type { OrcamentoFull } from "@/lib/types";
 
 export default function OrcamentoDetalhePage() {
@@ -49,22 +50,17 @@ export default function OrcamentoDetalhePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <p className="text-sm text-slate-500">Carregando orçamento…</p>
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-[var(--muted)]">Carregando orçamento…</p>
       </div>
     );
   }
 
   if (error || !orcamento) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-100">
-        <p className="text-sm text-red-600">
-          {error || "Orçamento não encontrado"}
-        </p>
-        <Link
-          href="/orcamentos"
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+        <p className="text-sm text-[var(--danger)]">{error || "Orçamento não encontrado"}</p>
+        <Link href="/orcamentos" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90">
           Voltar para lista
         </Link>
       </div>
@@ -72,21 +68,19 @@ export default function OrcamentoDetalhePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
-      <LayoutHeader paginaAtiva="orcamentos" />
+    <div className="min-h-screen text-[var(--foreground)]">
+      <LayoutHeader paginaAtiva="orcamentos" breadcrumb={[
+        { label: "Orçamentos", href: "/orcamentos" },
+        { label: `#${orcamento.id}`, href: `/orcamentos/${orcamento.id}/ver` },
+        { label: "Editar" },
+      ]} />
 
-      <main className="mx-auto max-w-7xl px-6 py-8">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="mb-6 flex flex-wrap items-center gap-4">
-          <Link
-            href="/orcamentos"
-            className="text-sm text-slate-600 hover:text-slate-900"
-          >
-            ← Voltar para lista
+          <Link href="/orcamentos" className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--accent)]">
+            <IconArrowLeft className="h-4 w-4" /> Voltar para lista
           </Link>
-          <Link
-            href={`/orcamentos/${orcamento.id}/ver`}
-            className="text-sm text-slate-600 underline hover:text-slate-900"
-          >
+          <Link href={`/orcamentos/${orcamento.id}/ver`} className="text-sm text-[var(--accent)] underline hover:no-underline">
             Visualizar
           </Link>
         </div>

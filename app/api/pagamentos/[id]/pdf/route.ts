@@ -89,9 +89,9 @@ export async function GET(
       logoUrl: config.logoUrl,
       timbradoUrl: config.timbradoUrl ?? null,
       cabecalhoCor: config.cabecalhoCor ?? null,
-      cabecalhoLocal: (config as Record<string, unknown>).cabecalhoLocal ?? null,
-      rodape: (config as Record<string, unknown>).rodape ?? null,
-      rodapeLocal: (config as Record<string, unknown>).rodapeLocal ?? null,
+      cabecalhoLocal: typeof (config as { cabecalhoLocal?: unknown }).cabecalhoLocal === "string" ? (config as { cabecalhoLocal?: string }).cabecalhoLocal : null,
+      rodape: typeof (config as { rodape?: unknown }).rodape === "string" ? (config as { rodape?: string }).rodape : null,
+      rodapeLocal: typeof (config as { rodapeLocal?: unknown }).rodapeLocal === "string" ? (config as { rodapeLocal?: string }).rodapeLocal : null,
       nomeAssinatura: config.nomeAssinatura,
       cidadeEmissao: config.cidadeEmissao,
     });

@@ -5,58 +5,48 @@ import { LayoutHeader } from "@/components/LayoutHeader";
 
 export default function CatalogoPage() {
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="min-h-screen text-[var(--foreground)]">
       <LayoutHeader paginaAtiva="catalogo" />
 
-      <main className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
+      <main className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-10 sm:px-6">
         <section>
-          <h1 className="text-3xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Catálogo
           </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Cadastre materiais e serviços para usar ao montar orçamentos.
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Faça seu próprio catálogo adicionando serviços e materiais ao clicar nas opções abaixo. Ative ou desative a SINAPI.
           </p>
         </section>
 
         <section className="grid gap-4 md:grid-cols-3 md:items-stretch">
-          <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold">Materiais</h2>
-            <p className="mt-1 flex-1 text-xs text-slate-600">
-              Nome, unidade de medida (Unitário, M², M³ ou Metros) e preço unitário. Itens ativos aparecem no orçamento.
-            </p>
-            <Link
-              href="/materiais"
-              className="mt-4 block w-full rounded-lg bg-slate-900 px-3 py-2 text-center text-xs font-medium text-white hover:bg-slate-800"
-            >
-              Ir para materiais
-            </Link>
-          </div>
+          <Link
+            href="/materiais"
+            className="flex flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface-elevated)]"
+          >
+            <h2 className="font-semibold">Materiais</h2>
+            <div className="mt-2 flex-1" />
+            <span className="mt-4 text-sm font-medium text-[var(--accent)]">Abrir materiais →</span>
+          </Link>
 
-          <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold">Serviços</h2>
-            <p className="mt-1 flex-1 text-xs text-slate-600">
-              Descrição, unidade de medida (Unitário, M², M³ ou Metros) e preço base. Serviços ativos aparecem no orçamento.
-            </p>
-            <Link
-              href="/servicos"
-              className="mt-4 block w-full rounded-lg bg-slate-900 px-3 py-2 text-center text-xs font-medium text-white hover:bg-slate-800"
-            >
-              Ir para serviços
-            </Link>
-          </div>
+          <Link
+            href="/servicos"
+            className="flex flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface-elevated)]"
+          >
+            <h2 className="font-semibold">Serviços</h2>
+            <div className="mt-2 flex-1" />
+            <span className="mt-4 text-sm font-medium text-[var(--accent)]">Abrir serviços →</span>
+          </Link>
 
-          <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold">SINAPI (MG)</h2>
-            <p className="mt-1 flex-1 text-xs text-slate-600">
-              Tabela oficial de custos. Ative ou desative o uso dos preços SINAPI Campos das Vertentes.
+          <Link
+            href="/catalogo/sinapi"
+            className="flex flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface-elevated)]"
+          >
+            <h2 className="font-semibold">SINAPI (MG)</h2>
+            <p className="mt-2 flex-1 text-sm text-[var(--muted)]">
+              Tabela oficial de custos. Ative para usar preços da região.
             </p>
-            <Link
-              href="/catalogo/sinapi"
-              className="mt-4 block w-full rounded-lg bg-slate-900 px-3 py-2 text-center text-xs font-medium text-white hover:bg-slate-800"
-            >
-              Configurar SINAPI
-            </Link>
-          </div>
+            <span className="mt-4 text-sm font-medium text-[var(--accent)]">Configurar →</span>
+          </Link>
         </section>
       </main>
     </div>

@@ -212,7 +212,7 @@ export function gerarPdfRecebimento(
   const rodapeAlign = rodapeLocal === "fim" ? "right" : rodapeLocal === "inicio" ? "left" : "center";
   const rodapeWidth = zonaLargura / 2;
   const rodapeX = rodapeLocal === "inicio" ? MARGEM_CM : rodapeLocal === "fim" ? MARGEM_CM + zonaLargura / 2 : MARGEM_CM + zonaLargura / 4;
-  const rodapeTexto = (config.rodape ?? "").trim() || "Este comprovante atesta o recebimento do valor acima referente ao orçamento citado.";
+  const rodapeTexto = (config.rodape ?? "").trim();
   doc.fontSize(8).fillColor("#666666");
   doc.text(rodapeTexto, rodapeX, RODAPE_Y, { width: rodapeWidth, align: rodapeAlign });
   doc.fillColor("#000000");

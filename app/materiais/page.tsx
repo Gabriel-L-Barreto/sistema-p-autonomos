@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { IconPencil, IconTrash, IconToggleOn, IconToggleOff } from "@/components/Icons";
 import { formatarPreco } from "@/lib/format";
 
 type TipoMedidaCatalogo = "UNITARIO" | "M2" | "M3" | "METROS";
@@ -151,19 +152,19 @@ export default function MateriaisPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="min-h-screen text-[var(--foreground)]">
       <LayoutHeader paginaAtiva="catalogo" />
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Catálogo de materiais</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Cadastre materiais para usar nos orçamentos. Unidade: Unitário, M², M³ ou Metros.
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Materiais</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Cadastre materiais de forma rápida para reutilizar nos orçamentos.
         </p>
 
-        <form onSubmit={salvar} className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <form onSubmit={salvar} className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label htmlFor="nome_material" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="nome_material" className="block text-sm font-medium text-[var(--muted)]">
                 Nome do material *
               </label>
               <input
@@ -171,19 +172,19 @@ export default function MateriaisPage() {
                 type="text"
                 value={nome_material}
                 onChange={(e) => setNomeMaterial(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
                 placeholder="Ex.: Cimento, Tijolo"
               />
             </div>
             <div>
-              <label htmlFor="unidadeMedida" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="unidadeMedida" className="block text-sm font-medium text-[var(--muted)]">
                 Unidade de medida
               </label>
               <select
                 id="unidadeMedida"
                 value={unidadeMedida}
                 onChange={(e) => setUnidadeMedida(e.target.value as TipoMedidaCatalogo)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
               >
                 <option value="UNITARIO">Unitário</option>
                 <option value="M2">M²</option>
@@ -192,7 +193,7 @@ export default function MateriaisPage() {
               </select>
             </div>
             <div>
-              <label htmlFor="precoUnitario" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="precoUnitario" className="block text-sm font-medium text-[var(--muted)]">
                 Preço unitário (R$)
               </label>
               <input
@@ -205,73 +206,80 @@ export default function MateriaisPage() {
                   const partes = v.split(".");
                   if (partes.length <= 2) setPrecoUnitario(partes.length === 2 ? `${partes[0]}.${partes[1]}` : v);
                 }}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
                 placeholder="0,00"
               />
             </div>
           </div>
-          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+          {error && <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>}
           <div className="mt-4 flex gap-2">
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
             >
               {editingId ? (saving ? "Salvando…" : "Atualizar") : saving ? "Salvando…" : "Cadastrar"}
             </button>
             {editingId && (
-              <button type="button" onClick={limparFormulario} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <button type="button" onClick={limparFormulario} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--muted)] hover:bg-[var(--surface-elevated)]">
                 Cancelar
               </button>
             )}
           </div>
         </form>
 
-        <section className="mt-8 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <section className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+          <div className="flex flex-col gap-4 border-b border-[var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-sm font-semibold">Lista de materiais</h2>
             <input
               type="search"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar por nome..."
-              className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full max-w-xs rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
             />
           </div>
           {loading ? (
-            <p className="p-6 text-sm text-slate-500">Carregando…</p>
+            <p className="p-6 text-sm text-[var(--muted)]">Carregando…</p>
           ) : materiais.length === 0 ? (
-            <p className="p-6 text-sm text-slate-500">
+            <p className="p-6 text-sm text-[var(--muted)]">
               {buscaDebounce ? "Nenhum material encontrado para esta busca." : "Nenhum material cadastrado."}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-4 py-3 font-medium text-slate-700">Nome</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Unidade</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Preço unitário</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Ativo</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Ações</th>
+                  <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)]">
+                    <th className="px-4 py-3 font-medium">Nome</th>
+                    <th className="px-4 py-3 font-medium">Unidade</th>
+                    <th className="px-4 py-3 font-medium">Preço unitário</th>
+                    <th className="px-4 py-3 font-medium">Ativo</th>
+                    <th className="px-4 py-3 font-medium">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {materiais.map((m) => (
-                    <tr key={m.id} className="border-b border-slate-100">
+                    <tr key={m.id} className="border-b border-[var(--border)]">
                       <td className="px-4 py-3">{m.nome_material}</td>
-                      <td className="px-4 py-3 text-slate-600">{m.unidadeMedida === "M2" ? "M²" : m.unidadeMedida === "M3" ? "M³" : m.unidadeMedida === "METROS" ? "Metros" : "Unitário"}</td>
+                      <td className="px-4 py-3 text-[var(--muted)]">{m.unidadeMedida === "M2" ? "M²" : m.unidadeMedida === "M3" ? "M³" : m.unidadeMedida === "METROS" ? "Metros" : "Unitário"}</td>
                       <td className="px-4 py-3">{formatarPreco(m.precoUnitario)}</td>
                       <td className="px-4 py-3">
-                        <span className={m.ativo ? "rounded-full bg-green-100 px-2 py-1 text-xs text-green-800" : "rounded-full bg-slate-200 px-2 py-1 text-xs text-slate-600"}>
+                        <span className={m.ativo ? "rounded-full bg-[var(--success-soft)] px-2 py-1 text-xs text-[var(--success)]" : "rounded-full bg-[var(--surface-elevated)] px-2 py-1 text-xs text-[var(--muted)]"}>
                           {m.ativo ? "Sim" : "Não"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => editar(m)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900" title="Editar"><span aria-hidden>✎</span></button>
-                          <button type="button" onClick={() => alternarAtivo(m)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900" title={m.ativo ? "Desativar" : "Ativar"}><span aria-hidden>{m.ativo ? "⏸" : "⊕"}</span></button>
-                          <button type="button" onClick={() => excluir(m.id, m.nome_material)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-red-600 transition-colors hover:bg-red-100 hover:text-red-800" title="Excluir"><span aria-hidden>🗑</span></button>
+                          <button type="button" onClick={() => editar(m)} className="inline-flex h-10 w-10 items-center justify-center rounded text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]" title="Editar"><IconPencil /></button>
+                          <button
+                            type="button"
+                            onClick={() => alternarAtivo(m)}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                            title={m.ativo ? "Desativar" : "Ativar"}
+                          >
+                            {m.ativo ? <IconToggleOn /> : <IconToggleOff />}
+                          </button>
+                          <button type="button" onClick={() => excluir(m.id, m.nome_material)} className="inline-flex h-10 w-10 items-center justify-center rounded text-[var(--danger)] hover:bg-[var(--danger-soft)]" title="Excluir"><IconTrash /></button>
                         </div>
                       </td>
                     </tr>
@@ -282,8 +290,8 @@ export default function MateriaisPage() {
           )}
         </section>
 
-        <p className="mt-4 text-sm text-slate-500">
-          <Link href="/catalogo" className="text-slate-600 underline hover:text-slate-900">← Voltar ao catálogo</Link>
+        <p className="mt-4 text-sm text-[var(--muted)]">
+          <Link href="/catalogo" className="text-[var(--accent)] hover:underline">← Voltar ao catálogo</Link>
         </p>
 
         {confirmExcluir && (

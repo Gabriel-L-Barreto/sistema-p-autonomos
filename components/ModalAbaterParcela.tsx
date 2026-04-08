@@ -60,13 +60,13 @@ export function ModalAbaterParcela({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
-        <h3 className="text-lg font-semibold text-slate-900">Abater parcela</h3>
-        <p className="mt-1 text-sm text-slate-600">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+        <h3 className="text-lg font-semibold text-[var(--foreground)]">Registrar recebimento</h3>
+        <p className="mt-1 text-sm text-[var(--muted)]">
           Orçamento #{orcamentoId} — {clienteNome}
         </p>
-        <p className="mt-2 text-sm font-medium text-slate-700">
+        <p className="mt-2 text-sm font-medium text-[var(--foreground)]">
           Valor restante:{" "}
           {new Intl.NumberFormat("pt-BR", {
             style: "currency",
@@ -76,12 +76,12 @@ export function ModalAbaterParcela({
 
         <form onSubmit={salvar} className="mt-4 space-y-4">
           {erro && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+            <div className="rounded-lg border border-[var(--danger)]/50 bg-[var(--danger-soft)] p-2 text-sm text-[var(--danger)]">
               {erro}
             </div>
           )}
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-[var(--muted)]">
               Valor (R$)
             </label>
             <input
@@ -93,12 +93,12 @@ export function ModalAbaterParcela({
                 setValor(v);
               }}
               placeholder="0,00"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
               autoFocus
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
+            <label className="mb-1 block text-sm font-medium text-[var(--muted)]">
               Forma de pagamento
             </label>
             <select
@@ -106,7 +106,7 @@ export function ModalAbaterParcela({
               onChange={(e) =>
                 setFormaPagamento(e.target.value as "DINHEIRO" | "PIX" | "CARTAO")
               }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
             >
               {(Object.keys(LABELS_FORMA_PAGAMENTO) as ("DINHEIRO" | "PIX" | "CARTAO")[]).map(
                 (k) => (
@@ -121,14 +121,14 @@ export function ModalAbaterParcela({
             <button
               type="submit"
               disabled={salvando || valorInvalido}
-              className="flex-1 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="flex-1 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
             >
               {salvando ? "Registrando…" : "Registrar"}
             </button>
             <button
               type="button"
               onClick={onFechar}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
             >
               Cancelar
             </button>

@@ -74,6 +74,17 @@ function formatarServicoMedida(desc: string, qtd: number, un: string): string {
   return `${qtd} ${un} de ${descLimpa}`;
 }
 
+function htmlParaTextoPdf(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|ul|ol)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function construirLinhasServicos(orc: OrcamentoParaPdf): string[] {
   const linhas: string[] = [];
   for (const serv of orc.servicos) {
@@ -273,7 +284,7 @@ export function gerarPdf(
   const rodapeAlign = rodapeLocal === "fim" ? "right" : rodapeLocal === "inicio" ? "left" : "center";
   const rodapeWidth = zonaLargura / 2;
   const rodapeX = rodapeLocal === "inicio" ? MARGEM_CM : rodapeLocal === "fim" ? MARGEM_CM + zonaLargura / 2 : MARGEM_CM + zonaLargura / 4;
-  const rodapeTexto = (config.rodape ?? "").trim() || "Documento válido por 30 dias a partir da data de emissão apenas para os serviços descritos acima. Quaisquer modificações ou acréscimo de serviços serão cobrados à parte.";
+  const rodapeTexto = (config.rodape ?? "").trim();
   doc.fontSize(8).fillColor("#666666");
   doc.text(rodapeTexto, rodapeX, RODAPE_Y, { width: rodapeWidth, align: rodapeAlign });
   doc.fillColor("#000000");

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { IconPencil, IconTrash, IconToggleOn, IconToggleOff } from "@/components/Icons";
 import { formatarPreco } from "@/lib/format";
 
 type ServicoCatalogo = {
@@ -43,6 +44,7 @@ export default function ServicosPage() {
   const [servicoMateriais, setServicoMateriais] = useState<ServicoMaterial[]>([]);
   const [materiaisPendentes, setMateriaisPendentes] = useState<{ materialId: number; quantidade: number; material: MaterialCatalogo }[]>([]);
   const [novoMaterialVinculo, setNovoMaterialVinculo] = useState({ materialId: "" as number | "", quantidade: "" });
+  const [buscaMaterialVinculo, setBuscaMaterialVinculo] = useState("");
 
   const [busca, setBusca] = useState("");
   const [buscaDebounce, setBuscaDebounce] = useState("");
@@ -241,23 +243,29 @@ export default function ServicosPage() {
     }
   };
 
+  const materiaisFiltradosVinculo = materiais.filter(
+    (m) =>
+      m.ativo !== false &&
+      m.nome_material.toLowerCase().includes(buscaMaterialVinculo.toLowerCase().trim())
+  );
+
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="min-h-screen text-[var(--foreground)]">
       <LayoutHeader paginaAtiva="catalogo" />
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight">Catálogo de serviços</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Cadastre serviços para usar nos orçamentos. Cobrança: Unitário, M², M³ ou Metros.
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Catálogo de serviços, você pode cadastrar um novo seguindo os seguintes passos: descrição, unidade, valor e (opcionalmente) vincular materiais.
         </p>
 
         <form
           onSubmit={salvar}
-          className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+          className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
         >
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="sm:col-span-2">
-              <label htmlFor="descricao" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="descricao" className="block text-sm font-medium text-[var(--muted)]">
                 Descrição do serviço *
               </label>
               <input
@@ -265,19 +273,19 @@ export default function ServicosPage() {
                 type="text"
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
                 placeholder="Ex.: Instalação elétrica, Pintura"
               />
             </div>
             <div>
-              <label htmlFor="unidade_medida" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="unidade_medida" className="block text-sm font-medium text-[var(--muted)]">
                 Unidade de medida
               </label>
               <select
                 id="unidade_medida"
                 value={unidade_medida}
                 onChange={(e) => setTipoCobranca(e.target.value as "UNITARIO" | "M2" | "M3" | "METROS")}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
               >
                 <option value="UNITARIO">Unitário</option>
                 <option value="M2">M²</option>
@@ -286,7 +294,7 @@ export default function ServicosPage() {
               </select>
             </div>
             <div>
-              <label htmlFor="precoBase" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="precoBase" className="block text-sm font-medium text-[var(--muted)]">
                 Preço base (R$)
               </label>
               <input
@@ -299,17 +307,17 @@ export default function ServicosPage() {
                   const partes = v.split(".");
                   if (partes.length <= 2) setPrecoBase(partes.length === 2 ? `${partes[0]}.${partes[1]}` : v);
                 }}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
                 placeholder="0,00"
               />
             </div>
           </div>
-          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+          {error && <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>}
           <div className="mt-4 flex gap-2">
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
             >
               {editingId ? (saving ? "Salvando…" : "Atualizar") : saving ? "Salvando…" : "Cadastrar"}
             </button>
@@ -317,7 +325,7 @@ export default function ServicosPage() {
               <button
                 type="button"
                 onClick={limparFormulario}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
               >
                 Concluir
               </button>
@@ -325,12 +333,19 @@ export default function ServicosPage() {
           </div>
         </form>
 
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-800">Materiais vinculados (opcional)</h3>
-          <p className="mt-1 text-xs text-slate-600">
+        <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <h3 className="text-sm font-semibold">Vínculo de materiais ao serviço (opcional)</h3>
+          <p className="mt-1 text-xs text-[var(--muted)]">
             Ao adicionar este serviço num orçamento, os itens abaixo serão incluídos automaticamente (quantidade do serviço × quantidade por m²/unidade).
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
+            <input
+              type="search"
+              value={buscaMaterialVinculo}
+              onChange={(e) => setBuscaMaterialVinculo(e.target.value)}
+              placeholder="Filtrar material..."
+              className="w-56 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+            />
             <select
               value={novoMaterialVinculo.materialId || ""}
               onChange={(e) =>
@@ -339,16 +354,14 @@ export default function ServicosPage() {
                   materialId: e.target.value ? Number(e.target.value) : ("" as number | ""),
                 })
               }
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
             >
               <option value="">Selecione um material</option>
-              {materiais
-                .filter((m) => m.ativo !== false)
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nome_material}
-                  </option>
-                ))}
+              {materiaisFiltradosVinculo.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nome_material}
+                </option>
+              ))}
             </select>
             <input
               type="text"
@@ -359,13 +372,13 @@ export default function ServicosPage() {
                 setNovoMaterialVinculo({ ...novoMaterialVinculo, quantidade: v });
               }}
               placeholder="Qtd por unidade de serviço"
-              className="w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-40 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
             />
             <button
               type="button"
               onClick={adicionarMaterialVinculo}
               disabled={!novoMaterialVinculo.materialId || !novoMaterialVinculo.quantidade}
-              className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+              className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
             >
               Vincular
             </button>
@@ -376,7 +389,7 @@ export default function ServicosPage() {
                 ? servicoMateriais.map((sm) => (
                     <li
                       key={sm.id}
-                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                      className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
                     >
                       <span>
                         {sm.material?.nome_material} — {sm.quantidade} por unidade
@@ -384,7 +397,7 @@ export default function ServicosPage() {
                       <button
                         type="button"
                         onClick={() => removerMaterialVinculo(sm.materialId)}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-[var(--danger)] hover:opacity-80"
                       >
                         Remover
                       </button>
@@ -393,7 +406,7 @@ export default function ServicosPage() {
                 : materiaisPendentes.map((p, idx) => (
                     <li
                       key={`${p.materialId}-${idx}`}
-                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                      className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
                     >
                       <span>
                         {p.material.nome_material} — {p.quantidade} por unidade
@@ -401,7 +414,7 @@ export default function ServicosPage() {
                       <button
                         type="button"
                         onClick={() => removerMaterialVinculo(p.materialId)}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-[var(--danger)] hover:opacity-80"
                       >
                         Remover
                       </button>
@@ -411,40 +424,40 @@ export default function ServicosPage() {
           )}
         </div>
 
-        <section className="mt-8 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <section className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+          <div className="flex flex-col gap-4 border-b border-[var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-sm font-semibold">Lista de serviços</h2>
             <input
               type="search"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar por descrição..."
-              className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full max-w-xs rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
             />
           </div>
           {loading ? (
-            <p className="p-6 text-sm text-slate-500">Carregando…</p>
+            <p className="p-6 text-sm text-[var(--muted)]">Carregando…</p>
           ) : servicos.length === 0 ? (
-            <p className="p-6 text-sm text-slate-500">
+            <p className="p-6 text-sm text-[var(--muted)]">
               {buscaDebounce ? "Nenhum serviço encontrado para esta busca." : "Nenhum serviço cadastrado."}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-4 py-3 font-medium text-slate-700">Descrição</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Cobrança</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Preço base</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Ativo</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Ações</th>
+                  <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)]">
+                    <th className="px-4 py-3 font-medium">Descrição</th>
+                    <th className="px-4 py-3 font-medium">Cobrança</th>
+                    <th className="px-4 py-3 font-medium">Preço base</th>
+                    <th className="px-4 py-3 font-medium">Ativo</th>
+                    <th className="px-4 py-3 font-medium">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {servicos.map((s) => (
-                    <tr key={s.id} className="border-b border-slate-100">
+                    <tr key={s.id} className="border-b border-[var(--border)]">
                       <td className="px-4 py-3">{s.descricao}</td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-[var(--muted)]">
                         {(s.tipo_cobranca ?? s.unidade_medida) === "M2" ? "M²" : (s.tipo_cobranca ?? s.unidade_medida) === "M3" ? "M³" : (s.tipo_cobranca ?? s.unidade_medida) === "METROS" ? "Metros" : "Unitário"}
                       </td>
                       <td className="px-4 py-3">{formatarPreco(s.precoBase)}</td>
@@ -452,8 +465,8 @@ export default function ServicosPage() {
                         <span
                           className={
                             s.servicoAtivo
-                              ? "rounded-full bg-green-100 px-2 py-1 text-xs text-green-800"
-                              : "rounded-full bg-slate-200 px-2 py-1 text-xs text-slate-600"
+                              ? "rounded-full bg-[var(--success-soft)] px-2 py-1 text-xs text-[var(--success)]"
+                              : "rounded-full bg-[var(--surface-elevated)] px-2 py-1 text-xs text-[var(--muted)]"
                           }
                         >
                           {s.servicoAtivo ? "Sim" : "Não"}
@@ -461,9 +474,16 @@ export default function ServicosPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => editar(s)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900" title="Editar"><span aria-hidden>✎</span></button>
-                          <button type="button" onClick={() => alternarAtivo(s)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900" title={s.servicoAtivo ? "Desativar" : "Ativar"}><span aria-hidden>{s.servicoAtivo ? "⏸" : "⊕"}</span></button>
-                          <button type="button" onClick={() => excluir(s.id, s.descricao)} className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-red-600 transition-colors hover:bg-red-100 hover:text-red-800" title="Excluir"><span aria-hidden>🗑</span></button>
+                          <button type="button" onClick={() => editar(s)} className="inline-flex h-10 w-10 items-center justify-center rounded text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]" title="Editar"><IconPencil /></button>
+                          <button
+                            type="button"
+                            onClick={() => alternarAtivo(s)}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                            title={s.servicoAtivo ? "Desativar" : "Ativar"}
+                          >
+                            {s.servicoAtivo ? <IconToggleOn /> : <IconToggleOff />}
+                          </button>
+                          <button type="button" onClick={() => excluir(s.id, s.descricao)} className="inline-flex h-10 w-10 items-center justify-center rounded text-[var(--danger)] hover:bg-[var(--danger-soft)]" title="Excluir"><IconTrash /></button>
                         </div>
                       </td>
                     </tr>
@@ -474,8 +494,8 @@ export default function ServicosPage() {
           )}
         </section>
 
-        <p className="mt-4 text-sm text-slate-500">
-          <Link href="/catalogo" className="text-slate-600 underline hover:text-slate-900">
+        <p className="mt-4 text-sm text-[var(--muted)]">
+          <Link href="/catalogo" className="text-[var(--accent)] hover:underline">
             ← Voltar ao catálogo
           </Link>
         </p>

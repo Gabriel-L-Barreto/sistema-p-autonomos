@@ -107,9 +107,9 @@ export const LABELS_STATUS: Record<StatusOrcamento, string> = {
 };
 
 export const STATUS_COLORS: Record<StatusOrcamento, string> = {
-  CADASTRADO: "bg-slate-200 text-slate-800",
-  NAO_ACEITO: "bg-red-100 text-red-800",
-  ACEITO: "bg-green-100 text-green-800",
-  INICIALIZADO: "bg-amber-100 text-amber-800",
-  FINALIZADO: "bg-emerald-200 text-emerald-900",
+  CADASTRADO: "bg-[var(--status-cadastrado-bg)] text-[var(--status-cadastrado-fg)]",
+  NAO_ACEITO: "bg-[var(--status-nao-aceito-bg)] text-[var(--status-nao-aceito-fg)]",
+  ACEITO: "bg-[var(--status-aceito-bg)] text-[var(--status-aceito-fg)]",
+  INICIALIZADO: "bg-[var(--status-inicializado-bg)] text-[var(--status-inicializado-fg)]",
+  FINALIZADO: "bg-[var(--status-finalizado-bg)] text-[var(--status-finalizado-fg)]",
 };

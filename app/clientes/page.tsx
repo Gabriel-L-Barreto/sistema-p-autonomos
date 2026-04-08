@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { IconPencil, IconTrash } from "@/components/Icons";
 import type { Cliente } from "@/lib/types";
 
 export default function ClientesPage() {
@@ -120,23 +120,23 @@ export default function ClientesPage() {
     }
   };
 
+  const inputBase = "mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]";
+
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="min-h-screen text-[var(--foreground)]">
       <LayoutHeader paginaAtiva="clientes" />
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Cadastre e edite clientes. Nome é obrigatório.
-        </p>
 
         <form
           onSubmit={salvar}
-          className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+          className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
         >
+          <h2 className="mb-3 text-base font-semibold">Cadastro de clientes</h2>
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label htmlFor="nome" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="nome" className="block text-sm font-medium text-[var(--muted)]">
                 Nome *
               </label>
               <input
@@ -144,12 +144,12 @@ export default function ClientesPage() {
                 type="text"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className={inputBase}
                 placeholder="Ex: Maria, Nome da Empresa"
               />
             </div>
             <div>
-              <label htmlFor="afiliacao" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="afiliacao" className="block text-sm font-medium text-[var(--muted)]">
                 Afiliação
               </label>
               <input
@@ -157,12 +157,12 @@ export default function ClientesPage() {
                 type="text"
                 value={afiliacao}
                 onChange={(e) => setAfiliacao(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className={inputBase}
                 placeholder="Nome do responsável, caso tenha"
               />
             </div>
             <div>
-              <label htmlFor="telefone" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="telefone" className="block text-sm font-medium text-[var(--muted)]">
                 Telefone
               </label>
               <input
@@ -170,19 +170,19 @@ export default function ClientesPage() {
                 type="text"
                 value={telefone}
                 onChange={(e) => setTelefone(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className={inputBase}
                 placeholder="XX XXXXX-XXXX"
               />
             </div>
           </div>
           {error && (
-            <p className="mt-3 text-sm text-red-600">{error}</p>
+            <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>
           )}
           <div className="mt-4 flex gap-2">
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
             >
               {editingId ? (saving ? "Salvando…" : "Atualizar") : saving ? "Salvando…" : "Cadastrar"}
             </button>
@@ -190,7 +190,7 @@ export default function ClientesPage() {
               <button
                 type="button"
                 onClick={limparFormulario}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
               >
                 Cancelar
               </button>
@@ -198,57 +198,60 @@ export default function ClientesPage() {
           </div>
         </form>
 
-        <section className="mt-8 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-sm font-semibold">Lista de clientes</h2>
+        <details className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+          <summary className="cursor-pointer border-b border-[var(--border)] px-4 py-3 text-sm font-semibold">
+            Lista de clientes
+          </summary>
+          <div className="flex flex-col gap-4 border-b border-[var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-sm font-semibold text-[var(--muted)]">Buscar cliente</h2>
             <input
               type="search"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar por nome, afiliação ou telefone..."
-              className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full max-w-xs rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
             />
           </div>
           {loading ? (
-            <p className="p-6 text-sm text-slate-500">Carregando…</p>
+            <p className="p-6 text-sm text-[var(--muted)]">Carregando…</p>
           ) : clientes.length === 0 ? (
-            <p className="p-6 text-sm text-slate-500">
-              {buscaDebounce ? "Nenhum cliente encontrado para esta busca." : "Nenhum cliente cadastrado."}
+            <p className="p-6 text-sm text-[var(--muted)]">
+              {buscaDebounce ? "Nenhum cliente encontrado." : "Nenhum cliente cadastrado."}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-4 py-3 font-medium text-slate-700">Nome</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Afiliação</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Telefone</th>
-                    <th className="px-4 py-3 font-medium text-slate-700">Ações</th>
+                  <tr className="border-b border-[var(--border)] bg-[var(--surface-elevated)]">
+                    <th className="px-4 py-3 font-medium">Nome</th>
+                    <th className="px-4 py-3 font-medium text-[var(--muted)]">Afiliação</th>
+                    <th className="px-4 py-3 font-medium text-[var(--muted)]">Telefone</th>
+                    <th className="px-4 py-3 font-medium text-[var(--muted)]">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {clientes.map((c) => (
-                    <tr key={c.id} className="border-b border-slate-100">
+                    <tr key={c.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-elevated)]/50">
                       <td className="px-4 py-3">{c.nome}</td>
-                      <td className="px-4 py-3 text-slate-600">{c.afiliacao ?? "—"}</td>
-                      <td className="px-4 py-3 text-slate-600">{c.telefone ?? "—"}</td>
+                      <td className="px-4 py-3 text-[var(--muted)]">{c.afiliacao ?? "—"}</td>
+                      <td className="px-4 py-3 text-[var(--muted)]">{c.telefone ?? "—"}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => editar(c)}
-                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900"
+                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-[var(--muted)] transition-colors hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
                             title="Editar"
                           >
-                            <span aria-hidden>✎</span>
+                            <IconPencil />
                           </button>
                           <button
                             type="button"
                             onClick={() => excluir(c.id, c.nome)}
-                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-base text-red-600 transition-colors hover:bg-red-100 hover:text-red-800"
+                            className="inline-flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded text-[var(--danger)] transition-colors hover:bg-[var(--danger-soft)]"
                             title="Excluir"
                           >
-                            <span aria-hidden>🗑</span>
+                            <IconTrash />
                           </button>
                         </div>
                       </td>
@@ -258,7 +261,7 @@ export default function ClientesPage() {
               </table>
             </div>
           )}
-        </section>
+        </details>
 
         {confirmExcluir && (
           <ConfirmDialog

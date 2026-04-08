@@ -99,11 +99,24 @@ model Orcamento {
   materiais      MaterialOrcamento[]
   servicos       ServicoOrcamento[]
   pagamentos     Pagamento[]
+  historicoStatus OrcamentoStatusHistorico[]
   
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
   @@map("orcamentos")
+}
+
+model OrcamentoStatusHistorico {
+  id          Int      @id @default(autoincrement())
+  orcamentoId Int
+  status      Status
+  data        DateTime @default(now())
+
+  orcamento   Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+
+  @@index([orcamentoId, data])
+  @@map("orcamento_status_historico")
 }
 
 model MaterialOrcamento {
