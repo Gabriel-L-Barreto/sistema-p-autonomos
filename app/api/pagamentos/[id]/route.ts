@@ -4,6 +4,7 @@ import {
   calcularValorTotal,
   calcularTotalPago,
 } from "@/lib/orcamento";
+import { formatarPreco } from "@/lib/format";
 
 const FORMAS_PAGAMENTO = ["DINHEIRO", "PIX", "CARTAO"] as const;
 
@@ -62,7 +63,7 @@ export async function PUT(
       if (valorRecebidoNum > valorRestanteMaisEste) {
         return NextResponse.json(
           {
-            error: `Valor não pode exceder o restante do orçamento (R$ ${valorRestanteMaisEste.toFixed(2)})`,
+            error: `Valor não pode exceder o restante do orçamento (${formatarPreco(valorRestanteMaisEste)})`,
           },
           { status: 400 }
         );

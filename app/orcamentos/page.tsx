@@ -18,7 +18,7 @@ import {
   calcularPorcentagemPaga,
   calcularValorRestante,
 } from "@/lib/orcamento";
-import { formatarData } from "@/lib/format";
+import { formatarData, formatarPreco } from "@/lib/format";
 import {
   IconFilter,
   IconPdf,
@@ -40,19 +40,30 @@ type AlertaOrcamentos =
   | "SEM_DEFINICAO_FINAL"
   | "FINALIZADOS_NAO_QUITADOS"
   | "EM_ANDAMENTO"
-  | "PENDENTES_RECEBIMENTO";
+  | "PENDENTES_RECEBIMENTO"
+  | "ACEITOS_SEM_INICIO_5_DIAS"
+  | "INICIALIZADOS_SEM_RECEBIMENTO_15_DIAS";
 
 function isStatusOrcamento(value: string): value is StatusOrcamento {
   return ["CADASTRADO", "NAO_ACEITO", "ACEITO", "INICIALIZADO", "FINALIZADO"].includes(value);
 }
 
 function isAlertaOrcamentos(value: string): value is AlertaOrcamentos {
-  return ["SEM_DEFINICAO_FINAL", "FINALIZADOS_NAO_QUITADOS", "EM_ANDAMENTO", "PENDENTES_RECEBIMENTO"].includes(value);
+  return [
+    "SEM_DEFINICAO_FINAL",
+    "FINALIZADOS_NAO_QUITADOS",
+    "EM_ANDAMENTO",
+    "PENDENTES_RECEBIMENTO",
+    "ACEITOS_SEM_INICIO_5_DIAS",
+    "INICIALIZADOS_SEM_RECEBIMENTO_15_DIAS",
+  ].includes(value);
 }
 
 function statusInicialPorAlerta(alerta: AlertaOrcamentos): string {
   if (alerta === "SEM_DEFINICAO_FINAL") return "CADASTRADO";
   if (alerta === "EM_ANDAMENTO") return "INICIALIZADO";
+  if (alerta === "ACEITOS_SEM_INICIO_5_DIAS") return "ACEITO";
+  if (alerta === "INICIALIZADOS_SEM_RECEBIMENTO_15_DIAS") return "INICIALIZADO";
   if (alerta === "FINALIZADOS_NAO_QUITADOS") return "FINALIZADO";
   return "";
 }
@@ -171,6 +182,7 @@ function OrcamentosListaContent() {
       setError("Informe a quantidade de parcelas (mínimo 1).");
       return;
     }
+    if (!window.confirm(`Confirmar configuração de ${qtd} parcelas iguais para este orçamento?`)) return;
     setSalvandoParcelas(true);
     try {
       const res = await fetch(
@@ -196,6 +208,7 @@ function OrcamentosListaContent() {
     orcamentoId: number,
     formaPagamento: "DINHEIRO" | "PIX" | "CARTAO"
   ) => {
+    if (!window.confirm("Confirmar registro de recebimento da próxima parcela?")) return;
     setRecebendoParcela(orcamentoId);
     try {
       const res = await fetch(`/api/orcamentos/${orcamentoId}/pagamentos/parcela-igual`, {
@@ -206,7 +219,7 @@ function OrcamentosListaContent() {
       const dados = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(dados.error || "Falha ao receber parcela");
       await carregarOrcamentos();
-      window.open(`/api/pagamentos/${dados.id}/pdf`, "_blank");
+      window.open(`/api/pagamentos/${dados.id}/pdf`, "_blank", "noopener,noreferrer");
     } catch (erro) {
       setError(erro instanceof Error ? erro.message : "Erro ao receber parcela");
     } finally {
@@ -254,7 +267,7 @@ function OrcamentosListaContent() {
 
         <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
-            <h2 className="text-sm font-semibold text-[var(--muted)]">Listagem</h2>
+            <h2 className="text-sm font-semibold text-[var(--muted)]">Orçamentos cadastrados</h2>
             <div className="relative flex items-center gap-2">
               {filtroAberto && (
                 <div className="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4 shadow-xl">
@@ -372,10 +385,10 @@ function OrcamentosListaContent() {
                         <td className="px-4 py-3">{orcamento.cliente.nome}</td>
                         <td className="px-4 py-3 text-[var(--muted)]">{formatarData(orcamento.data)}</td>
                         <td className="px-4 py-3 font-medium">
-                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valorTotal)}
+                          {formatarPreco(valorTotal)}
                         </td>
                         <td className="px-4 py-3 text-[var(--muted)]">
-                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valorRestante)}
+                          {formatarPreco(valorRestante)}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -402,7 +415,8 @@ function OrcamentosListaContent() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            {valorRestante > 0 && (
+                            {valorRestante > 0 &&
+                              !["CADASTRADO", "NAO_ACEITO"].includes(orcamento.status) && (
                               <>
                                 {!temParcelasIguais ? (
                                   <button

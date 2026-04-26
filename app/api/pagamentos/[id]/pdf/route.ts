@@ -57,6 +57,7 @@ export async function GET(
     const rec: RecebimentoParaPdf = {
       orcamentoId: orc.id,
       pagamentoId: pagamento.id,
+      dataOrcamento: orc.data.toISOString(),
       endereco: orc.endereco,
       valorRecebido: pagamento.valorRecebido,
       formaPagamento: formaPagamentoLabel,
@@ -87,7 +88,13 @@ export async function GET(
     gerarPdfRecebimento(doc, rec, {
       cabecalho: config.cabecalho,
       logoUrl: config.logoUrl,
-      timbradoUrl: config.timbradoUrl ?? null,
+      timbradoUrl: (config as { timbradoRecebimentoUrl?: string | null }).timbradoRecebimentoUrl
+        ?? config.timbradoUrl
+        ?? null,
+      timbradoRecebimentoUrl:
+        (config as { timbradoRecebimentoUrl?: string | null }).timbradoRecebimentoUrl ?? null,
+      pixQrCodeUrl:
+        (config as { pixQrCodeUrl?: string | null }).pixQrCodeUrl ?? null,
       cabecalhoCor: config.cabecalhoCor ?? null,
       cabecalhoLocal: typeof (config as { cabecalhoLocal?: unknown }).cabecalhoLocal === "string" ? (config as { cabecalhoLocal?: string }).cabecalhoLocal : null,
       rodape: typeof (config as { rodape?: unknown }).rodape === "string" ? (config as { rodape?: string }).rodape : null,

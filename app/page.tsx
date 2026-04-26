@@ -11,28 +11,41 @@ import {
   IconSettings,
   IconEye,
 } from "@/components/Icons";
+import { formatarPreco } from "@/lib/format";
 
 type Stats = {
   totalOrcamentos: number;
   totalRecebimentos: number;
   totalValorOrcamentos: number;
   totalValorRecebimentos: number;
+  valorAceitos: number;
   valorInicializados: number;
-  valorEmAberto: number;
   valorFinalizados: number;
   recebidoNoMes: number;
   esperadoNoMes: number;
   valorTotalAnual: number;
   valoresMensaisInicializados: number[];
+  recebimentosMensais: number[];
+  levantamentoRecebimentosMensal: number;
   cadastrados: number;
   inicializados: number;
-  finalizadosNaoQuitados: number;
   orcamentosPendentes: number;
+  finalizadosNaoQuitados: number;
+  aceitosAguardandoInicio: number;
+  inicializadosSemRecebimento15Dias: number;
 };
 
 export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null);
-  const [ocultarValores, setOcultarValores] = useState(false);
+  const [mesRelatorio, setMesRelatorio] = useState<string>("");
+  const [ocultarValores, setOcultarValores] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem("home_ocultar_valores") === "1";
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     fetch("/api/dashboard")
@@ -41,18 +54,7 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    try {
-      const salvo = localStorage.getItem("home_ocultar_valores");
-      if (salvo === "1") setOcultarValores(true);
-    } catch {
-      // fallback silencioso
-    }
-  }, []);
-
-  const formatarMoeda = (valor: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
-  const exibirMoeda = (valor: number) => (ocultarValores ? "••••••" : formatarMoeda(valor));
+  const exibirMoeda = (valor: number) => (ocultarValores ? "••••••" : formatarPreco(valor));
 
   const graficoMaximo = Math.max(
     1,
@@ -61,6 +63,8 @@ export default function Home() {
     stats?.valorTotalAnual ?? 0
   );
   const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const mesesLongos = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  const anoAtual = new Date().getFullYear();
   const maxMensalInicializado = Math.max(1, ...(stats?.valoresMensaisInicializados ?? [0]));
 
   return (
@@ -102,11 +106,6 @@ export default function Home() {
             <div className="relative grid gap-5 md:grid-cols-[1fr_auto] md:items-end">
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight">Novo orçamento</h2>
-                <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                  <span className="rounded-full border border-white/30 bg-white/10 px-2 py-1">Cliente</span>
-                  <span className="rounded-full border border-white/30 bg-white/10 px-2 py-1">Servicos</span>
-                  <span className="rounded-full border border-white/30 bg-white/10 px-2 py-1">Materiais</span>
-                </div>
               </div>
               <div className="relative inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-[var(--accent)] transition group-hover:translate-x-0.5">
                 Cadastrar novo <IconChevronRight className="h-4 w-4" />
@@ -116,15 +115,75 @@ export default function Home() {
         </section>
 
         <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="text-base font-semibold">Alertas</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <Link
+              href="/orcamentos?status=CADASTRADO"
+              className="rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-soft)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Sem definição final</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.cadastrados ?? 0} orçamento(s) com status cadastrado.
+              </p>
+            </Link>
+            <Link
+              href="/orcamentos?alerta=ACEITOS_SEM_INICIO_5_DIAS"
+              className="rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-soft)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Aceitos aguardando início</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.aceitosAguardandoInicio ?? 0} orçamento(s) aceitos há mais de 5 dias.
+              </p>
+            </Link>
+            <Link
+              href="/orcamentos?status=FINALIZADO&alerta=FINALIZADOS_NAO_QUITADOS"
+              className="rounded-lg border border-[var(--danger)]/40 bg-[var(--danger-soft)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Finalizados não quitados</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.finalizadosNaoQuitados ?? 0} orçamento(s) finalizados com pendência.
+              </p>
+            </Link>
+            <Link
+              href="/orcamentos?status=INICIALIZADO"
+              className="rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-soft)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Em andamento</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.inicializados ?? 0} orçamento(s) inicializados.
+              </p>
+            </Link>
+            <Link
+              href="/orcamentos?alerta=INICIALIZADOS_SEM_RECEBIMENTO_15_DIAS"
+              className="rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-soft)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Sem recebimento recente</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.inicializadosSemRecebimento15Dias ?? 0} orçamento(s) inicializados sem recebimento há mais de 15 dias.
+              </p>
+            </Link>
+            <Link
+              href="/orcamentos?alerta=PENDENTES_RECEBIMENTO"
+              className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Pendentes de recebimento</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.orcamentosPendentes ?? 0} orçamento(s) em aberto.
+              </p>
+            </Link>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="text-base font-semibold">Indicadores</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
-              <p className="text-xs text-[var(--muted)]">Inicializados</p>
-              <p className="mt-1 text-xl font-semibold">{exibirMoeda(stats?.valorInicializados ?? 0)}</p>
+              <p className="text-xs text-[var(--muted)]">Aceitos</p>
+              <p className="mt-1 text-xl font-semibold">{exibirMoeda(stats?.valorAceitos ?? 0)}</p>
             </div>
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
-              <p className="text-xs text-[var(--muted)]">Em aberto</p>
-              <p className="mt-1 text-xl font-semibold">{exibirMoeda(stats?.valorEmAberto ?? 0)}</p>
+              <p className="text-xs text-[var(--muted)]">Inicializados</p>
+              <p className="mt-1 text-xl font-semibold">{exibirMoeda(stats?.valorInicializados ?? 0)}</p>
             </div>
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
               <p className="text-xs text-[var(--muted)]">Finalizados</p>
@@ -160,24 +219,34 @@ export default function Home() {
           </div>
 
           <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4">
+            <p className="text-sm font-semibold">Levantamento de recebimentos no mês</p>
+            <p className="text-xs text-[var(--muted)]">
+              Total recebido no mês atual: <span className="font-semibold text-[var(--foreground)]">{exibirMoeda(stats?.levantamentoRecebimentosMensal ?? 0)}</span>
+            </p>
+          </div>
+
+          <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4">
             <p className="text-sm font-semibold">Valores mensais por entrada em Inicializado</p>
             <p className="text-xs text-[var(--muted)]">
               Quando um orçamento muda para status Inicializado, seu valor entra no mês correspondente.
             </p>
-            <div className="mt-4 grid grid-cols-12 gap-2">
+            <div className="mt-4 grid grid-cols-12 gap-1 sm:gap-2">
               {meses.map((mes, idx) => {
                 const valor = stats?.valoresMensaisInicializados?.[idx] ?? 0;
                 const altura = Math.max(8, Math.round((valor / maxMensalInicializado) * 100));
                 return (
-                  <div key={mes} className="flex flex-col items-center">
-                    <div className="flex h-28 w-full items-end">
+                  <div key={mes} className="flex min-w-0 flex-col items-center">
+                    <div className="flex h-28 w-full min-w-0 items-end">
                       <div
                         className="w-full rounded-t-md bg-[var(--accent)]"
                         style={{ height: `${altura}%` }}
-                        title={`${mes}: ${ocultarValores ? "••••••" : formatarMoeda(valor)}`}
+                        title={`${mes}: ${ocultarValores ? "••••••" : formatarPreco(valor)}`}
                       />
                     </div>
-                    <span className="mt-1 text-[10px] text-[var(--muted)]">{mes}</span>
+                    <span className="mt-1 w-full text-center text-[8px] font-semibold leading-tight text-[var(--foreground)] tabular-nums sm:text-[9px]">
+                      {exibirMoeda(valor)}
+                    </span>
+                    <span className="mt-0.5 text-[10px] text-[var(--muted)]">{mes}</span>
                   </div>
                 );
               })}
@@ -186,44 +255,48 @@ export default function Home() {
         </section>
 
         <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="text-base font-semibold">Alertas</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <Link
-              href="/orcamentos?status=CADASTRADO"
-              className="rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-soft)] p-3 transition hover:opacity-90"
-            >
-              <p className="text-sm font-medium">Sem definição final</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-semibold">Relatórios de recebimentos</h2>
               <p className="text-sm text-[var(--muted)]">
-                {stats?.cadastrados ?? 0} orçamento(s) com status cadastrado.
+                Selecione o mês e gere o relatório.
               </p>
-            </Link>
-            <Link
-              href="/orcamentos?status=FINALIZADO&alerta=FINALIZADOS_NAO_QUITADOS"
-              className="rounded-lg border border-[var(--danger)]/40 bg-[var(--danger-soft)] p-3 transition hover:opacity-90"
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-[var(--muted)]">Mês</label>
+              <select
+                value={mesRelatorio}
+                onChange={(e) => setMesRelatorio(e.target.value)}
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+              >
+                <option value="">Ano inteiro</option>
+                {mesesLongos.map((mesNome, idx) => (
+                  <option key={mesNome} value={String(idx + 1)}>
+                    {mesNome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <a
+              href={
+                mesRelatorio
+                  ? `/api/relatorios/recebimentos/pdf?ano=${anoAtual}&mes=${mesRelatorio}`
+                  : `/api/relatorios/recebimentos/pdf?ano=${anoAtual}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-medium text-[var(--on-accent)] hover:opacity-90"
             >
-              <p className="text-sm font-medium">Finalizados não quitados</p>
-              <p className="text-sm text-[var(--muted)]">
-                {stats?.finalizadosNaoQuitados ?? 0} orçamento(s) finalizados com pendência.
-              </p>
-            </Link>
-            <Link
-              href="/orcamentos?status=INICIALIZADO"
-              className="rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-soft)] p-3 transition hover:opacity-90"
-            >
-              <p className="text-sm font-medium">Em andamento</p>
-              <p className="text-sm text-[var(--muted)]">
-                {stats?.inicializados ?? 0} orçamento(s) inicializados.
-              </p>
-            </Link>
-            <Link
-              href="/orcamentos?alerta=PENDENTES_RECEBIMENTO"
-              className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3 transition hover:opacity-90"
-            >
-              <p className="text-sm font-medium">Pendentes de recebimento</p>
-              <p className="text-sm text-[var(--muted)]">
-                {stats?.orcamentosPendentes ?? 0} orçamento(s) em aberto.
-              </p>
-            </Link>
+              {mesRelatorio ? "Imprimir mês selecionado" : "Imprimir relatório anual"}
+            </a>
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm">
+              {mesRelatorio
+                ? `Total do mês: ${exibirMoeda(stats?.recebimentosMensais?.[Number(mesRelatorio) - 1] ?? 0)}`
+                : `Total no ano: ${exibirMoeda((stats?.recebimentosMensais ?? []).reduce((s, v) => s + v, 0))}`}
+            </div>
           </div>
         </section>
 

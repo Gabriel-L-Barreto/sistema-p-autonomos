@@ -5,6 +5,7 @@ import type { ConfigParaPdf } from "./gerar-pdf-orcamento";
 export type RecebimentoParaPdf = {
   orcamentoId: number;
   pagamentoId: number;
+  dataOrcamento: string;
   endereco: string;
   valorRecebido: number;
   formaPagamento: string;
@@ -86,8 +87,15 @@ export function gerarPdfRecebimento(
   rec: RecebimentoParaPdf,
   config: ConfigParaPdf
 ): void {
+  const totalServicos = rec.servicos.reduce((s, i) => s + i.quantidade * i.valorMaoObra, 0);
+  const totalMateriais = rec.incluiMaterial
+    ? rec.materiais.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0)
+    : 0;
+  const totalOrcamento = totalServicos + totalMateriais;
+  const percentualRecebido = totalOrcamento > 0 ? (rec.valorRecebido / totalOrcamento) * 100 : 0;
   const valorExtenso = valorPorExtenso(rec.valorRecebido);
   const dataObj = new Date(rec.data);
+  const dataOrcamentoObj = new Date(rec.dataOrcamento);
   const meses = [
     "janeiro", "fevereiro", "março", "abril", "maio", "junho",
     "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
@@ -142,25 +150,44 @@ export function gerarPdfRecebimento(
   const enter = ESPACO_LINHA * 2.5;
   doc.fontSize(12).font("Helvetica-Bold");
   doc.text(
-    `Recebimento Nº ${String(rec.pagamentoId).padStart(3, "0")}/${dataObj.getFullYear()}`,
+    `DECLARAÇÃO DE RECEBIMENTO Nº ${String(rec.pagamentoId).padStart(3, "0")}/${dataObj.getFullYear()}`,
     MARGEM_CM,
     y,
     { width: zonaLargura, align: "center" }
   );
-  y += enter;
-  doc.font("Helvetica-Bold");
-  doc.text(`Ref. Orçamento Nº ${String(rec.orcamentoId).padStart(3, "0")}/${dataObj.getFullYear()}`, MARGEM_CM, y, { width: zonaLargura, align: "center" });
-  y += enter;
+  y = (doc as { y: number }).y + 4;
+  doc.fontSize(7).font("Helvetica").fillColor("#555555");
+  doc.text(
+    `Ref. Orçamento Nº ${String(rec.orcamentoId).padStart(3, "0")}/${dataObj.getFullYear()}`,
+    MARGEM_CM,
+    y,
+    { width: zonaLargura, align: "center" }
+  );
+  y = (doc as { y: number }).y + 18;
+  doc.fontSize(12).font("Helvetica-Bold").fillColor("#000000");
   doc.text(`Cliente: ${rec.cliente.nome}`, MARGEM_CM, y, { width: zonaLargura, align: "center" });
   y += enter;
   doc.font("Helvetica");
   doc.text(rec.endereco, MARGEM_CM, y, { width: zonaLargura, align: "center" });
   y = PRIMEIRO_TERCO_Y_MAX + 25;
 
-  // ========== CONTEÚDO: Descrição do orçamento + serviços (igual ao orçamento) ==========
+  // ========== CONTEÚDO: declaração de recebimento + serviços prestados ==========
   const conteudoYMax = TERCEIRO_QUARTO_Y - 30;
   doc.font("Helvetica-Bold");
-  doc.text("Descrição do Orçamento:", MARGEM_CM, y);
+  doc.text("Declaração:", MARGEM_CM, y);
+  y += ESPACO_INFO;
+
+  const referenciaOrcamento = `${String(rec.orcamentoId).padStart(3, "0")}/${dataOrcamentoObj.getFullYear()}`;
+  const clausulaRecebimento = rec.parcela
+    ? `Por meio deste, declaro ter recebido a parcela ${rec.parcela.numero}/${rec.parcela.total} referente ao orçamento nº ${referenciaOrcamento}.`
+    : `Por meio deste, declaro ter recebido ${percentualRecebido.toFixed(2).replace(".", ",")}% do orçamento nº ${referenciaOrcamento}.`;
+
+  doc.font("Helvetica");
+  doc.text(clausulaRecebimento, MARGEM_CM, y, { width: zonaLargura });
+  y = (doc as { y: number }).y + 10;
+
+  doc.font("Helvetica-Bold");
+  doc.text("Serviços prestados:", MARGEM_CM, y);
   y += ESPACO_INFO;
 
   const linhasServicos = construirLinhasServicos(rec);
@@ -171,25 +198,52 @@ export function gerarPdfRecebimento(
     y = (doc as { y: number }).y + 6;
   }
 
-  // Parcela (se houver) - em uma linha discreta
-  if (rec.parcela) {
-    y = (doc as { y: number }).y + 10;
-    doc.fontSize(10).font("Helvetica");
-    doc.text(`Parcela ${rec.parcela.numero}/${rec.parcela.total}`, MARGEM_CM, y);
-  }
-
   // ========== VALOR recebido no terceiro quarto (igual ao Valor Total do orçamento) ==========
-  const valoresY = TERCEIRO_QUARTO_Y;
-  doc.font("Helvetica-Bold");
+  let yValor = TERCEIRO_QUARTO_Y;
+  doc.font("Helvetica-Bold").fontSize(12).fillColor("#000000");
   doc.text(
     `Valor recebido: ${rec.valorRecebido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (${valorExtenso})`,
     MARGEM_CM,
-    valoresY
+    yValor
   );
+  if (rec.parcela) {
+    yValor = (doc as { y: number }).y + 4;
+    doc.fontSize(7).font("Helvetica").fillColor("#555555");
+    doc.text(
+      `Parcela ${rec.parcela.numero}/${rec.parcela.total}`,
+      MARGEM_CM,
+      yValor,
+      { width: zonaLargura, align: "left" }
+    );
+  } else {
+    yValor = (doc as { y: number }).y + 4;
+    doc.fontSize(7).font("Helvetica").fillColor("#555555");
+    doc.text(
+      `Percentual deste recebimento: ${percentualRecebido.toFixed(2).replace(".", ",")}% do orçamento`,
+      MARGEM_CM,
+      yValor,
+      { width: zonaLargura, align: "left" }
+    );
+  }
+  doc.fontSize(12).font("Helvetica").fillColor("#000000");
+
+  const pixQrCodeUrl = (config as { pixQrCodeUrl?: string | null }).pixQrCodeUrl ?? null;
+  if (rec.formaPagamento.toUpperCase().includes("PIX") && pixQrCodeUrl) {
+    const qrSize = 95;
+    const qrX = MARGEM_CM + zonaLargura - qrSize;
+    const qrY = TERCEIRO_QUARTO_Y + 32;
+    try {
+      doc.fontSize(8).font("Helvetica").fillColor("#555555");
+      doc.text("QR Code PIX", qrX, qrY - 12, { width: qrSize, align: "center" });
+      doc.image(pixQrCodeUrl, qrX, qrY, { fit: [qrSize, qrSize], align: "center", valign: "center" });
+      doc.fillColor("#000000");
+    } catch {
+      doc.fillColor("#000000");
+    }
+  }
 
   // ========== ÚLTIMO QUARTO: Data e Assinaturas (duas: Autônomo | Cliente) ==========
   const dataY = ULTIMO_QUARTO_Y_INICIO - 15;
-  doc.font("Helvetica");
   doc.text(dataFormatada, MARGEM_CM, dataY, { width: zonaLargura, align: "center" });
 
   const ESPACO_DATA_ASSINATURA = 50;
@@ -213,7 +267,7 @@ export function gerarPdfRecebimento(
   const rodapeWidth = zonaLargura / 2;
   const rodapeX = rodapeLocal === "inicio" ? MARGEM_CM : rodapeLocal === "fim" ? MARGEM_CM + zonaLargura / 2 : MARGEM_CM + zonaLargura / 4;
   const rodapeTexto = (config.rodape ?? "").trim();
-  doc.fontSize(8).fillColor("#666666");
+  doc.fontSize(8).fillColor(cabecalhoCorValida);
   doc.text(rodapeTexto, rodapeX, RODAPE_Y, { width: rodapeWidth, align: rodapeAlign });
   doc.fillColor("#000000");
 }

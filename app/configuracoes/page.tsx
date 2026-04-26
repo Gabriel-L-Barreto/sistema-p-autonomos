@@ -11,6 +11,8 @@ type Config = {
   rodape: string | null;
   logoUrl: string | null;
   timbradoUrl: string | null;
+  timbradoRecebimentoUrl: string | null;
+  pixQrCodeUrl: string | null;
   cabecalhoCor: string | null;
   cabecalhoLocal: string | null;
   rodapeLocal: string | null;
@@ -33,6 +35,8 @@ export default function ConfiguracoesPage() {
   const [rodapeLocal, setRodapeLocal] = useState<"inicio" | "meio" | "fim">("meio");
   const [logoUrl, setLogoUrl] = useState("");
   const [timbradoUrl, setTimbradoUrl] = useState("");
+  const [timbradoRecebimentoUrl, setTimbradoRecebimentoUrl] = useState("");
+  const [pixQrCodeUrl, setPixQrCodeUrl] = useState("");
   const [nomeAssinatura, setNomeAssinatura] = useState("");
   const [cidadeEmissao, setCidadeEmissao] = useState("");
 
@@ -49,6 +53,8 @@ export default function ConfiguracoesPage() {
         setRodape(data.rodape ?? "");
         setLogoUrl(data.logoUrl ?? "");
         setTimbradoUrl(data.timbradoUrl ?? "");
+        setTimbradoRecebimentoUrl(data.timbradoRecebimentoUrl ?? "");
+        setPixQrCodeUrl(data.pixQrCodeUrl ?? "");
         setCabecalhoCor(data.cabecalhoCor ?? "#1f2b6b");
         setCabecalhoLocal(["inicio", "meio", "fim"].includes(data.cabecalhoLocal ?? "") ? (data.cabecalhoLocal as "inicio" | "meio" | "fim") : "meio");
         setRodapeLocal(["inicio", "meio", "fim"].includes(data.rodapeLocal ?? "") ? (data.rodapeLocal as "inicio" | "meio" | "fim") : "meio");
@@ -75,6 +81,8 @@ export default function ConfiguracoesPage() {
           cabecalho: cabecalho.trim(),
           logoUrl: logoUrl.trim() || null,
           timbradoUrl: timbradoUrl.trim() || null,
+          timbradoRecebimentoUrl: timbradoRecebimentoUrl.trim() || null,
+          pixQrCodeUrl: pixQrCodeUrl.trim() || null,
           cabecalhoCor: cabecalhoCor || null,
           cabecalhoLocal,
           rodape: rodape.trim() || null,
@@ -104,6 +112,22 @@ export default function ConfiguracoesPage() {
     if (!file || file.type !== "image/png") return;
     const reader = new FileReader();
     reader.onload = () => setTimbradoUrl(String(reader.result));
+    reader.readAsDataURL(file);
+  };
+
+  const handleTimbradoRecebimentoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || file.type !== "image/png") return;
+    const reader = new FileReader();
+    reader.onload = () => setTimbradoRecebimentoUrl(String(reader.result));
+    reader.readAsDataURL(file);
+  };
+
+  const handlePixQrCodeFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => setPixQrCodeUrl(String(reader.result));
     reader.readAsDataURL(file);
   };
 
@@ -167,7 +191,7 @@ export default function ConfiguracoesPage() {
                 <textarea value={cabecalho} onChange={(e) => setCabecalho(e.target.value)} rows={5} className={`${inputBase} mt-3 resize-none`} />
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-xs text-[var(--muted)]">Cor do texto</label>
+                    <label className="mb-1 block text-xs text-[var(--muted)]">Cor do texto (cabeçalho e rodapé)</label>
                     <input type="color" value={cabecalhoCor} onChange={(e) => setCabecalhoCor(e.target.value)} className="h-10 w-20 rounded border border-[var(--border)] bg-transparent" />
                   </div>
                   <div>
@@ -218,6 +242,56 @@ export default function ConfiguracoesPage() {
                 {timbradoUrl && (
                   <div className="mt-3 h-24 w-24 overflow-hidden rounded-lg border border-[var(--border)]">
                     <img src={timbradoUrl} alt="Preview timbrado" className="h-full w-full object-cover" />
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4">
+                <h2 className="font-medium">Papel timbrado exclusivo para recebimentos</h2>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Se informado, será usado apenas nos PDFs de recebimento. Se vazio, usa o timbrado padrão.
+                </p>
+                <input
+                  type="file"
+                  accept="image/png"
+                  onChange={handleTimbradoRecebimentoFile}
+                  className="mt-3 block w-full text-sm file:rounded-lg file:border-0 file:bg-[var(--accent-soft)] file:px-4 file:py-2 file:text-[var(--accent)]"
+                />
+                <input
+                  type="url"
+                  value={timbradoRecebimentoUrl}
+                  onChange={(e) => setTimbradoRecebimentoUrl(e.target.value)}
+                  className={`${inputBase} mt-3`}
+                  placeholder="https://... (ou apague para usar o timbrado padrão)"
+                />
+                {timbradoRecebimentoUrl && (
+                  <div className="mt-3 h-24 w-24 overflow-hidden rounded-lg border border-[var(--border)]">
+                    <img src={timbradoRecebimentoUrl} alt="Preview timbrado recebimento" className="h-full w-full object-cover" />
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4">
+                <h2 className="font-medium">QR Code PIX para recebimentos</h2>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Esse QR aparece automaticamente no PDF de recebimento quando a forma de pagamento for PIX.
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePixQrCodeFile}
+                  className="mt-3 block w-full text-sm file:rounded-lg file:border-0 file:bg-[var(--accent-soft)] file:px-4 file:py-2 file:text-[var(--accent)]"
+                />
+                <input
+                  type="url"
+                  value={pixQrCodeUrl}
+                  onChange={(e) => setPixQrCodeUrl(e.target.value)}
+                  className={`${inputBase} mt-3`}
+                  placeholder="https://... (ou data:image/...)"
+                />
+                {pixQrCodeUrl && (
+                  <div className="mt-3 h-24 w-24 overflow-hidden rounded-lg border border-[var(--border)]">
+                    <img src={pixQrCodeUrl} alt="Preview QR Code PIX" className="h-full w-full object-cover" />
                   </div>
                 )}
               </div>

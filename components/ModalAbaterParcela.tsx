@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { LABELS_FORMA_PAGAMENTO } from "@/lib/types";
+import { formatarPreco } from "@/lib/format";
 
 type Props = {
   orcamentoId: number;
@@ -33,8 +34,11 @@ export function ModalAbaterParcela({
       setErro(
         valorNum <= 0
           ? "Informe um valor positivo"
-          : `Valor não pode exceder R$ ${valorRestante.toFixed(2)}`
+          : `Valor não pode exceder ${formatarPreco(valorRestante)}`
       );
+      return;
+    }
+    if (!window.confirm(`Confirmar recebimento de ${formatarPreco(valorNum)}?`)) {
       return;
     }
     setSalvando(true);
@@ -51,7 +55,7 @@ export function ModalAbaterParcela({
       if (!res.ok) throw new Error(dados.error || "Falha ao registrar");
       onSucesso();
       onFechar();
-      window.open(`/api/pagamentos/${dados.id}/pdf`, "_blank");
+      window.open(`/api/pagamentos/${dados.id}/pdf`, "_blank", "noopener,noreferrer");
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao registrar pagamento");
     } finally {
@@ -68,10 +72,7 @@ export function ModalAbaterParcela({
         </p>
         <p className="mt-2 text-sm font-medium text-[var(--foreground)]">
           Valor restante:{" "}
-          {new Intl.NumberFormat("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-          }).format(valorRestante)}
+          {formatarPreco(valorRestante)}
         </p>
 
         <form onSubmit={salvar} className="mt-4 space-y-4">
@@ -89,7 +90,9 @@ export function ModalAbaterParcela({
               inputMode="decimal"
               value={valor}
               onChange={(e) => {
-                const v = e.target.value.replace(/[^0-9,.]/g, "").replace(",", ".");
+                let v = e.target.value.replace(/[^0-9,.\s]/g, "").replace(/\s/g, "").replace(/\./g, ",");
+                const partes = v.split(",");
+                if (partes.length > 2) v = partes[0] + "," + partes.slice(1).join("");
                 setValor(v);
               }}
               placeholder="0,00"

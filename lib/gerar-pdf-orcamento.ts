@@ -27,6 +27,8 @@ export type ConfigParaPdf = {
   cabecalho: string;
   logoUrl: string | null;
   timbradoUrl: string | null;
+  timbradoRecebimentoUrl?: string | null;
+  pixQrCodeUrl?: string | null;
   cabecalhoCor: string | null;
   cabecalhoLocal?: string | null; // inicio, meio, fim
   rodape?: string | null;
@@ -285,7 +287,7 @@ export function gerarPdf(
   const rodapeWidth = zonaLargura / 2;
   const rodapeX = rodapeLocal === "inicio" ? MARGEM_CM : rodapeLocal === "fim" ? MARGEM_CM + zonaLargura / 2 : MARGEM_CM + zonaLargura / 4;
   const rodapeTexto = (config.rodape ?? "").trim();
-  doc.fontSize(8).fillColor("#666666");
+  doc.fontSize(8).fillColor(cabecalhoCorValida);
   doc.text(rodapeTexto, rodapeX, RODAPE_Y, { width: rodapeWidth, align: rodapeAlign });
   doc.fillColor("#000000");
 }

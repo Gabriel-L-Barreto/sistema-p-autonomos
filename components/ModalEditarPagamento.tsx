@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { LABELS_FORMA_PAGAMENTO } from "@/lib/types";
+import { formatarPreco } from "@/lib/format";
 
 type PagamentoItem = {
   id: number;
@@ -23,7 +24,7 @@ export function ModalEditarPagamento({
   onSucesso,
   onFechar,
 }: Props) {
-  const [valor, setValor] = useState(String(pagamento.valorRecebido));
+  const [valor, setValor] = useState(String(pagamento.valorRecebido).replace(".", ","));
   const [formaPagamento, setFormaPagamento] = useState<"DINHEIRO" | "PIX" | "CARTAO">(
     pagamento.formaPagamento
   );
@@ -40,8 +41,11 @@ export function ModalEditarPagamento({
       setErro(
         valorNum <= 0
           ? "Informe um valor positivo"
-          : `Valor não pode exceder R$ ${valorMaximo.toFixed(2)}`
+          : `Valor não pode exceder ${formatarPreco(valorMaximo)}`
       );
+      return;
+    }
+    if (!window.confirm(`Confirmar alteração do recebimento para ${formatarPreco(valorNum)}?`)) {
       return;
     }
     setSalvando(true);
@@ -74,10 +78,7 @@ export function ModalEditarPagamento({
         </p>
         <p className="mt-2 text-sm font-medium text-[var(--foreground)]">
           Valor máximo permitido:{" "}
-          {new Intl.NumberFormat("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-          }).format(valorMaximo)}
+          {formatarPreco(valorMaximo)}
         </p>
 
         <form onSubmit={salvar} className="mt-4 space-y-4">
@@ -88,10 +89,20 @@ export function ModalEditarPagamento({
           )}
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--muted)]">Valor (R$)</label>
-            <input type="text" inputMode="decimal" value={valor}
-              onChange={(e) => { const v = e.target.value.replace(/[^0-9,.]/g, "").replace(",", "."); setValor(v); }}
-              placeholder="0,00" className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-              autoFocus />
+            <input
+              type="text"
+              inputMode="decimal"
+              value={valor}
+              placeholder="0,00"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              autoFocus
+              onChange={(e) => {
+                let v = e.target.value.replace(/[^0-9,.\s]/g, "").replace(/\s/g, "").replace(/\./g, ",");
+                const partes = v.split(",");
+                if (partes.length > 2) v = partes[0] + "," + partes.slice(1).join("");
+                setValor(v);
+              }}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-[var(--muted)]">Forma de pagamento</label>

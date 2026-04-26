@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { truncarTexto } from "@/lib/sanitize";
+import { resolveOwnerAutonomoIdForCreate } from "@/lib/resolve-owner-autonomo";
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { nome_material, unidadeMedida, precoUnitario } = body;
+    const { nome_material, unidadeMedida, precoUnitario, ownerAutonomoId: ownerAutonomoIdBody } = body;
 
     if (
       !nome_material ||
@@ -67,13 +68,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const material = await prisma.material.create({
-      data: {
-        nome_material: nomeTrim,
-        unidadeMedida,
-        precoUnitario,
-        ativo: true,
-      },
+    const material = await prisma.$transaction(async (tx) => {
+      const ownerAutonomoId = await resolveOwnerAutonomoIdForCreate(tx, ownerAutonomoIdBody);
+      return tx.material.create({
+        data: {
+          ownerAutonomoId,
+          nome_material: nomeTrim,
+          unidadeMedida,
+          precoUnitario,
+          ativo: true,
+        },
+      });
     });
 
     return NextResponse.json(material, { status: 201 });

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
+import { syncOrcamentosIdSequence } from "@/lib/sync-orcamentos-sequence";
 import { sanitizarHtml, truncarTexto } from "@/lib/sanitize";
 import { calcularValorTotal, calcularTotalPago } from "@/lib/orcamento";
-import { Prisma } from "@prisma/client";
+import { resolveOwnerAutonomoIdForCreate } from "@/lib/resolve-owner-autonomo";
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,9 +23,13 @@ export async function GET(request: NextRequest) {
       EM_ANDAMENTO: ["INICIALIZADO"],
       PENDENTES_RECEBIMENTO: ["CADASTRADO", "ACEITO", "INICIALIZADO"],
       FINALIZADOS_NAO_QUITADOS: ["FINALIZADO"],
+      ACEITOS_SEM_INICIO_5_DIAS: ["ACEITO"],
+      INICIALIZADOS_SEM_RECEBIMENTO_15_DIAS: ["INICIALIZADO"],
     };
     const statusAlerta = statusPorAlerta[alerta] ?? null;
     const filtroFinalizadosNaoQuitados = alerta === "FINALIZADOS_NAO_QUITADOS";
+    const filtroAceitosSemInicio = alerta === "ACEITOS_SEM_INICIO_5_DIAS";
+    const filtroInicializadosSemRecebimento = alerta === "INICIALIZADOS_SEM_RECEBIMENTO_15_DIAS";
 
     if (q.length > 0) {
       const orConditions: object[] = [
@@ -56,7 +62,7 @@ export async function GET(request: NextRequest) {
     };
     const orderBy = orderByMap[sortBy] ?? { createdAt: "desc" };
 
-    if (filtroFinalizadosNaoQuitados) {
+    if (filtroFinalizadosNaoQuitados || filtroAceitosSemInicio || filtroInicializadosSemRecebimento) {
       const listaFinalizados = await prisma.orcamento.findMany({
         where,
         include: {
@@ -72,15 +78,38 @@ export async function GET(request: NextRequest) {
             },
           },
           pagamentos: true,
+          historicoStatus: {
+            orderBy: { data: "desc" },
+          },
         },
         orderBy,
       });
 
+      const agora = new Date();
+      const cincoDiasMs = 5 * 24 * 60 * 60 * 1000;
+      const quinzeDiasMs = 15 * 24 * 60 * 60 * 1000;
       const filtrados = listaFinalizados.filter((o) => {
         const valorTotal = calcularValorTotal(o.materiais, o.servicos, o.incluiMaterial);
         const valorPago = calcularTotalPago(o.pagamentos);
         const quitado = valorPago >= valorTotal && valorTotal > 0;
-        return !quitado;
+        if (filtroFinalizadosNaoQuitados) return !quitado;
+
+        if (filtroAceitosSemInicio) {
+          const dataAceite = o.historicoStatus.find((h) => h.status === "ACEITO")?.data ?? null;
+          return Boolean(dataAceite && agora.getTime() - dataAceite.getTime() > cincoDiasMs);
+        }
+
+        if (filtroInicializadosSemRecebimento) {
+          const valorRestante = Math.max(0, valorTotal - valorPago);
+          if (valorRestante <= 0) return false;
+          const ultimoRecebimento = o.pagamentos.reduce<Date | null>((acc, pagamento) => {
+            if (!acc) return pagamento.data;
+            return pagamento.data > acc ? pagamento.data : acc;
+          }, null);
+          return Boolean(ultimoRecebimento && agora.getTime() - ultimoRecebimento.getTime() > quinzeDiasMs);
+        }
+
+        return true;
       });
 
       const total = filtrados.length;
@@ -114,6 +143,9 @@ export async function GET(request: NextRequest) {
             },
           },
           pagamentos: true,
+          historicoStatus: {
+            orderBy: { data: "desc" },
+          },
         },
         orderBy,
         skip: (page - 1) * limit,
@@ -144,7 +176,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      clienteId,
+      clienteId: clienteIdRaw,
+      ownerAutonomoId: ownerAutonomoIdBody,
       endereco,
       data,
       tempoEstimado,
@@ -154,7 +187,13 @@ export async function POST(request: NextRequest) {
       complemento,
     } = body;
 
-    if (!clienteId || typeof clienteId !== "number") {
+    const clienteId =
+      typeof clienteIdRaw === "number"
+        ? clienteIdRaw
+        : typeof clienteIdRaw === "string"
+          ? parseInt(clienteIdRaw, 10)
+          : NaN;
+    if (!Number.isFinite(clienteId) || clienteId <= 0) {
       return NextResponse.json(
         { error: "ID do cliente é obrigatório" },
         { status: 400 }
@@ -184,34 +223,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const orcamento = await prisma.orcamento.create({
-      data: {
-        clienteId,
-        endereco: enderecoLimpo,
-        data: data ? new Date(data) : new Date(),
-        tempoEstimado: tempoEstimado || null,
-        incluiMaterial: incluiMaterial || false,
-        totalParcelas: totalParcelas || null,
-        status: status || "CADASTRADO",
-        complemento: complementoLimpo,
-      },
-      include: {
-        cliente: true,
-        materiais: true,
-        servicos: true,
-      },
-    });
+    const criar = () =>
+      prisma.$transaction(async (tx) => {
+        const ownerAutonomoId = await resolveOwnerAutonomoIdForCreate(tx, ownerAutonomoIdBody);
+        const o = await tx.orcamento.create({
+          data: {
+            ownerAutonomoId,
+            clienteId,
+            endereco: enderecoLimpo,
+            data: data ? new Date(data) : new Date(),
+            tempoEstimado: tempoEstimado ?? null,
+            incluiMaterial: incluiMaterial || false,
+            totalParcelas: totalParcelas || null,
+            status: status || "CADASTRADO",
+            complemento: complementoLimpo,
+          },
+          include: {
+            cliente: true,
+            materiais: true,
+            servicos: true,
+          },
+        });
+        await tx.orcamentoStatusHistorico.create({
+          data: {
+            orcamentoId: o.id,
+            status: o.status,
+          },
+        });
+        return o;
+      });
 
-    await prisma.$executeRaw(
-      Prisma.sql`INSERT INTO "orcamento_status_historico" ("orcamentoId", "status", "data") VALUES (${orcamento.id}, ${orcamento.status}::"Status", NOW())`
-    );
+    let orcamento;
+    try {
+      orcamento = await criar();
+    } catch (first: unknown) {
+      const conflitoId =
+        first instanceof PrismaClientKnownRequestError &&
+        first.code === "P2002" &&
+        Array.isArray(first.meta?.target) &&
+        first.meta.target.includes("id");
+      if (!conflitoId) throw first;
+      await syncOrcamentosIdSequence(prisma);
+      orcamento = await criar();
+    }
 
     return NextResponse.json(orcamento, { status: 201 });
   } catch (error) {
     console.error("Erro ao criar orçamento:", error);
-    return NextResponse.json(
-      { error: "Erro ao criar orçamento" },
-      { status: 500 }
-    );
+    const msg =
+      error instanceof Error && error.message.includes("autônomo")
+        ? error.message
+        : "Erro ao criar orçamento";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

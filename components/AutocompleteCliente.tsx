@@ -30,7 +30,9 @@ export function AutocompleteCliente({
   placeholder = "Buscar cliente...",
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const filtrados = clientes.filter((c) => matchCliente(value, c));
+  const filtrados = clientes
+    .filter((c) => matchCliente(value, c))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
   const [aberto, setAberto] = React.useState(false);
 
   useEffect(() => {

@@ -28,10 +28,10 @@ export function InputNumero({
         if (inteiro) {
           onChange(v.replace(/[^0-9]/g, ""));
         } else {
-          const limpo = v.replace(/[^0-9,.]/g, "").replace(",", ".");
-          const partes = limpo.split(".");
+          const limpo = v.replace(/[^0-9,.\s]/g, "").replace(/\s/g, "").replace(/\./g, ",");
+          const partes = limpo.split(",");
           if (partes.length > 2) return;
-          onChange(partes.length === 2 ? `${partes[0]}.${partes[1]}` : partes[0]);
+          onChange(partes.length === 2 ? `${partes[0]},${partes[1]}` : partes[0]);
         }
       }}
       placeholder={placeholder}

@@ -48,6 +48,12 @@ export async function POST(
         { status: 404 }
       );
     }
+    if (["CADASTRADO", "NAO_ACEITO"].includes(orcamento.status)) {
+      return NextResponse.json(
+        { error: "Recebimentos só podem ser registrados para orçamentos aceitos, inicializados ou finalizados." },
+        { status: 400 }
+      );
+    }
 
     const totalParcelas = orcamento.totalParcelas;
     if (totalParcelas == null || totalParcelas < 1) {

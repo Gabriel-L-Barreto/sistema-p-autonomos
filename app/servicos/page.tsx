@@ -24,11 +24,11 @@ type MaterialCatalogo = {
   ativo?: boolean;
 };
 
-type ServicoMaterial = {
+type ServicoMaterialVinculo = {
   id: number;
   quantidade: number;
   materialId: number;
-  material: MaterialCatalogo;
+  material: MaterialCatalogo | null;
 };
 
 export default function ServicosPage() {
@@ -38,10 +38,15 @@ export default function ServicosPage() {
   const [descricao, setDescricao] = useState("");
   const [unidade_medida, setTipoCobranca] = useState<"UNITARIO" | "M2" | "M3" | "METROS">("UNITARIO");
   const [precoBase, setPrecoBase] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editando, setEditando] = useState<ServicoCatalogo | null>(null);
+  const [editPreco, setEditPreco] = useState("");
+  const [editServicoMateriais, setEditServicoMateriais] = useState<ServicoMaterialVinculo[]>([]);
+  const [editNovoMaterialVinculo, setEditNovoMaterialVinculo] = useState<{ materialId: number | ""; quantidade: string }>({ materialId: "", quantidade: "" });
+  const [editBuscaMaterialVinculo, setEditBuscaMaterialVinculo] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [erroEdit, setErroEdit] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [servicoMateriais, setServicoMateriais] = useState<ServicoMaterial[]>([]);
   const [materiaisPendentes, setMateriaisPendentes] = useState<{ materialId: number; quantidade: number; material: MaterialCatalogo }[]>([]);
   const [novoMaterialVinculo, setNovoMaterialVinculo] = useState({ materialId: "" as number | "", quantidade: "" });
   const [buscaMaterialVinculo, setBuscaMaterialVinculo] = useState("");
@@ -49,6 +54,12 @@ export default function ServicosPage() {
   const [busca, setBusca] = useState("");
   const [buscaDebounce, setBuscaDebounce] = useState("");
   const [confirmExcluir, setConfirmExcluir] = useState<{ id: number; desc: string } | null>(null);
+  const normalizarDecimal = (valor: string) => {
+    let limpo = valor.replace(/[^0-9,.\s]/g, "").replace(/\s/g, "").replace(/\./g, ",");
+    const partes = limpo.split(",");
+    if (partes.length > 2) limpo = partes[0] + "," + partes.slice(1).join("");
+    return limpo;
+  };
 
   const carregarServicos = async () => {
     setLoading(true);
@@ -81,25 +92,11 @@ export default function ServicosPage() {
     carregarMateriais();
   }, []);
 
-  useEffect(() => {
-    if (!editingId) {
-      setServicoMateriais([]);
-      return;
-    }
-    const carregar = async () => {
-      const res = await fetch(`/api/servicos/${editingId}/materiais`);
-      if (res.ok) setServicoMateriais(await res.json());
-    };
-    carregar();
-  }, [editingId]);
-
   const limparFormulario = () => {
     setDescricao("");
     setTipoCobranca("UNITARIO");
     setPrecoBase("");
-    setEditingId(null);
     setError(null);
-    setServicoMateriais([]);
     setMateriaisPendentes([]);
     setNovoMaterialVinculo({ materialId: "" as number | "", quantidade: "" });
   };
@@ -112,42 +109,17 @@ export default function ServicosPage() {
     const material = materiais.find((m) => m.id === materialId);
     if (!material) return;
     setNovoMaterialVinculo({ materialId: "" as number | "", quantidade: "" });
-    if (editingId) {
-      try {
-        const res = await fetch(`/api/servicos/${editingId}/materiais`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ materialId, quantidade: qtd }),
-        });
-        if (!res.ok) throw new Error("Falha ao vincular");
-        const sm = await res.json();
-        setServicoMateriais((prev) => [...prev, sm]);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Erro ao vincular material");
-      }
-    } else {
-      setMateriaisPendentes((prev) => [...prev, { materialId, quantidade: qtd, material }]);
-    }
+    setMateriaisPendentes((prev) => [...prev, { materialId, quantidade: qtd, material }]);
   };
 
   const removerMaterialVinculo = async (materialId: number) => {
-    if (editingId) {
-      try {
-        const res = await fetch(`/api/servicos/${editingId}/materiais/${materialId}`, { method: "DELETE" });
-        if (!res.ok) throw new Error("Falha ao remover");
-        setServicoMateriais((prev) => prev.filter((sm) => sm.materialId !== materialId));
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Erro ao remover material");
-      }
-    } else {
-      setMateriaisPendentes((prev) => prev.filter((p) => p.materialId !== materialId));
-    }
+    setMateriaisPendentes((prev) => prev.filter((p) => p.materialId !== materialId));
   };
 
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const preco = parseFloat(precoBase);
+    const preco = parseFloat(precoBase.replace(",", "."));
     if (!descricao.trim()) {
       setError("Descrição do serviço é obrigatória.");
       return;
@@ -163,37 +135,24 @@ export default function ServicosPage() {
         tipo_cobranca: unidade_medida,
         precoBase: preco,
       };
-      if (editingId) {
-        const resposta = await fetch(`/api/servicos/${editingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(corpo),
-        });
-        if (!resposta.ok) {
-          const dados = await resposta.json().catch(() => ({}));
-          throw new Error(dados.error || "Falha ao atualizar");
-        }
-        limparFormulario();
-      } else {
-        const resposta = await fetch("/api/servicos", {
+      const resposta = await fetch("/api/servicos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corpo),
+      });
+      if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => ({}));
+        throw new Error(dados.error || "Falha ao criar");
+      }
+      const servicoCriado = await resposta.json();
+      for (const p of materiaisPendentes) {
+        await fetch(`/api/servicos/${servicoCriado.id}/materiais`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(corpo),
+          body: JSON.stringify({ materialId: p.materialId, quantidade: p.quantidade }),
         });
-        if (!resposta.ok) {
-          const dados = await resposta.json().catch(() => ({}));
-          throw new Error(dados.error || "Falha ao criar");
-        }
-        const servicoCriado = await resposta.json();
-        for (const p of materiaisPendentes) {
-          await fetch(`/api/servicos/${servicoCriado.id}/materiais`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ materialId: p.materialId, quantidade: p.quantidade }),
-          });
-        }
-        limparFormulario();
       }
+      limparFormulario();
       await carregarServicos();
     } catch (erro) {
       setError(erro instanceof Error ? erro.message : "Erro ao salvar");
@@ -203,11 +162,93 @@ export default function ServicosPage() {
   };
 
   const editar = (s: ServicoCatalogo) => {
-    setDescricao(s.descricao);
-    setTipoCobranca(s.tipo_cobranca ?? s.unidade_medida ?? "UNITARIO");
-    setPrecoBase(String(s.precoBase));
-    setEditingId(s.id);
-    setError(null);
+    setErroEdit(null);
+    setEditando(s);
+    setEditPreco(String(s.precoBase).replace(".", ","));
+    setEditNovoMaterialVinculo({ materialId: "", quantidade: "" });
+    setEditBuscaMaterialVinculo("");
+    fetch(`/api/servicos/${s.id}/materiais`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((dados) => setEditServicoMateriais(Array.isArray(dados) ? dados : []))
+      .catch(() => setEditServicoMateriais([]));
+  };
+
+  const adicionarMaterialVinculoEdicao = async () => {
+    if (!editando || !editNovoMaterialVinculo.materialId || !editNovoMaterialVinculo.quantidade) return;
+    const qtd = parseFloat(String(editNovoMaterialVinculo.quantidade).replace(",", "."));
+    if (Number.isNaN(qtd) || qtd <= 0) return;
+    setErroEdit(null);
+    try {
+      const resposta = await fetch(`/api/servicos/${editando.id}/materiais`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          materialId: editNovoMaterialVinculo.materialId,
+          quantidade: qtd,
+        }),
+      });
+      const dados = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) throw new Error(dados.error || "Falha ao vincular material");
+      setEditServicoMateriais((prev) => {
+        const semMesmo = prev.filter((v) => v.materialId !== dados.materialId);
+        return [...semMesmo, dados];
+      });
+      setEditNovoMaterialVinculo({ materialId: "", quantidade: "" });
+    } catch (erro) {
+      setErroEdit(erro instanceof Error ? erro.message : "Erro ao vincular material");
+    }
+  };
+
+  const removerMaterialVinculoEdicao = async (materialId: number) => {
+    if (!editando) return;
+    setErroEdit(null);
+    try {
+      const resposta = await fetch(`/api/servicos/${editando.id}/materiais/${materialId}`, { method: "DELETE" });
+      const dados = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) throw new Error(dados.error || "Falha ao remover material");
+      setEditServicoMateriais((prev) => prev.filter((v) => v.materialId !== materialId));
+    } catch (erro) {
+      setErroEdit(erro instanceof Error ? erro.message : "Erro ao remover material");
+    }
+  };
+
+  const salvarEdicao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editando) return;
+    setErroEdit(null);
+    const preco = parseFloat(editPreco.replace(",", "."));
+    if (!editando.descricao.trim()) {
+      setErroEdit("Descrição do serviço é obrigatória.");
+      return;
+    }
+    if (Number.isNaN(preco) || preco < 0) {
+      setErroEdit("Preço base deve ser um número maior ou igual a zero.");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const resposta = await fetch(`/api/servicos/${editando.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          descricao: editando.descricao.trim(),
+          tipo_cobranca: editando.tipo_cobranca ?? editando.unidade_medida ?? "UNITARIO",
+          precoBase: preco,
+        }),
+      });
+      if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => ({}));
+        throw new Error(dados.error || "Falha ao atualizar");
+      }
+      setEditando(null);
+      setEditPreco("");
+      setEditServicoMateriais([]);
+      await carregarServicos();
+    } catch (erro) {
+      setErroEdit(erro instanceof Error ? erro.message : "Erro ao salvar");
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const alternarAtivo = async (s: ServicoCatalogo) => {
@@ -219,7 +260,6 @@ export default function ServicosPage() {
       });
       if (!resposta.ok) throw new Error("Falha ao atualizar");
       await carregarServicos();
-      if (editingId === s.id) limparFormulario();
     } catch (erro) {
       setError(erro instanceof Error ? erro.message : "Erro ao atualizar");
     }
@@ -236,7 +276,11 @@ export default function ServicosPage() {
     try {
       const resposta = await fetch(`/api/servicos/${id}`, { method: "DELETE" });
       if (!resposta.ok) throw new Error("Falha ao excluir");
-      if (editingId === id) limparFormulario();
+      if (editando?.id === id) {
+        setEditando(null);
+        setEditPreco("");
+        setEditServicoMateriais([]);
+      }
       await carregarServicos();
     } catch (erro) {
       setError(erro instanceof Error ? erro.message : "Erro ao excluir");
@@ -247,6 +291,11 @@ export default function ServicosPage() {
     (m) =>
       m.ativo !== false &&
       m.nome_material.toLowerCase().includes(buscaMaterialVinculo.toLowerCase().trim())
+  );
+  const materiaisFiltradosVinculoEdicao = materiais.filter(
+    (m) =>
+      m.ativo !== false &&
+      m.nome_material.toLowerCase().includes(editBuscaMaterialVinculo.toLowerCase().trim())
   );
 
   return (
@@ -303,9 +352,7 @@ export default function ServicosPage() {
                 inputMode="decimal"
                 value={precoBase}
                 onChange={(e) => {
-                  const v = e.target.value.replace(/[^0-9,.]/g, "").replace(",", ".");
-                  const partes = v.split(".");
-                  if (partes.length <= 2) setPrecoBase(partes.length === 2 ? `${partes[0]}.${partes[1]}` : v);
+                  setPrecoBase(normalizarDecimal(e.target.value));
                 }}
                 className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
                 placeholder="0,00"
@@ -319,17 +366,8 @@ export default function ServicosPage() {
               disabled={saving}
               className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
             >
-              {editingId ? (saving ? "Salvando…" : "Atualizar") : saving ? "Salvando…" : "Cadastrar"}
+              {saving ? "Salvando…" : "Cadastrar"}
             </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={limparFormulario}
-                className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
-              >
-                Concluir
-              </button>
-            )}
           </div>
         </form>
 
@@ -368,7 +406,7 @@ export default function ServicosPage() {
               inputMode="decimal"
               value={novoMaterialVinculo.quantidade}
               onChange={(e) => {
-                const v = e.target.value.replace(/[^0-9,.]/g, "").replace(",", ".");
+                const v = normalizarDecimal(e.target.value);
                 setNovoMaterialVinculo({ ...novoMaterialVinculo, quantidade: v });
               }}
               placeholder="Qtd por unidade de serviço"
@@ -383,43 +421,25 @@ export default function ServicosPage() {
               Vincular
             </button>
           </div>
-          {(editingId ? servicoMateriais : materiaisPendentes).length > 0 && (
+          {materiaisPendentes.length > 0 && (
             <ul className="mt-4 space-y-2">
-              {(editingId
-                ? servicoMateriais.map((sm) => (
-                    <li
-                      key={sm.id}
-                      className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
-                    >
-                      <span>
-                        {sm.material?.nome_material} — {sm.quantidade} por unidade
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removerMaterialVinculo(sm.materialId)}
-                        className="text-[var(--danger)] hover:opacity-80"
-                      >
-                        Remover
-                      </button>
-                    </li>
-                  ))
-                : materiaisPendentes.map((p, idx) => (
-                    <li
-                      key={`${p.materialId}-${idx}`}
-                      className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
-                    >
-                      <span>
-                        {p.material.nome_material} — {p.quantidade} por unidade
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removerMaterialVinculo(p.materialId)}
-                        className="text-[var(--danger)] hover:opacity-80"
-                      >
-                        Remover
-                      </button>
-                    </li>
-                  )))}
+              {materiaisPendentes.map((p, idx) => (
+                <li
+                  key={`${p.materialId}-${idx}`}
+                  className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+                >
+                  <span>
+                    {p.material.nome_material} — {p.quantidade} por unidade
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removerMaterialVinculo(p.materialId)}
+                    className="text-[var(--danger)] hover:opacity-80"
+                  >
+                    Remover
+                  </button>
+                </li>
+              ))}
             </ul>
           )}
         </div>
@@ -510,6 +530,153 @@ export default function ServicosPage() {
             onConfirm={executarExcluir}
             onCancel={() => setConfirmExcluir(null)}
           />
+        )}
+
+        {editando && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-soft)] p-4">
+            <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+              <h3 className="text-lg font-semibold">Editar serviço</h3>
+              <form onSubmit={salvarEdicao} className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)]">Descrição do serviço *</label>
+                  <input
+                    type="text"
+                    value={editando.descricao}
+                    onChange={(e) => setEditando({ ...editando, descricao: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)]">Unidade de medida</label>
+                  <select
+                    value={editando.tipo_cobranca ?? editando.unidade_medida ?? "UNITARIO"}
+                    onChange={(e) =>
+                      setEditando({
+                        ...editando,
+                        tipo_cobranca: e.target.value as "UNITARIO" | "M2" | "M3" | "METROS",
+                        unidade_medida: e.target.value as "UNITARIO" | "M2" | "M3" | "METROS",
+                      })
+                    }
+                    className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+                  >
+                    <option value="UNITARIO">Unitário</option>
+                    <option value="M2">M²</option>
+                    <option value="M3">M³</option>
+                    <option value="METROS">Metros</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)]">Preço base (R$)</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={editPreco}
+                    onChange={(e) => setEditPreco(normalizarDecimal(e.target.value))}
+                    className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+                  />
+                </div>
+                {erroEdit && <p className="text-sm text-[var(--danger)]">{erroEdit}</p>}
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditando(null);
+                      setEditPreco("");
+                      setEditServicoMateriais([]);
+                    }}
+                    className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingEdit}
+                    className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
+                  >
+                    {savingEdit ? "Salvando…" : "Salvar"}
+                  </button>
+                </div>
+              </form>
+
+              <div className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4">
+                <h4 className="text-sm font-semibold">Materiais vinculados ao serviço</h4>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Esses materiais serão incluídos automaticamente quando o serviço for adicionado ao orçamento.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <input
+                    type="search"
+                    value={editBuscaMaterialVinculo}
+                    onChange={(e) => setEditBuscaMaterialVinculo(e.target.value)}
+                    placeholder="Filtrar material..."
+                    className="w-52 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                  />
+                  <select
+                    value={editNovoMaterialVinculo.materialId || ""}
+                    onChange={(e) =>
+                      setEditNovoMaterialVinculo({
+                        ...editNovoMaterialVinculo,
+                        materialId: e.target.value ? Number(e.target.value) : ("" as number | ""),
+                      })
+                    }
+                    className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione um material</option>
+                    {materiaisFiltradosVinculoEdicao.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.nome_material}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={editNovoMaterialVinculo.quantidade}
+                    onChange={(e) =>
+                      setEditNovoMaterialVinculo({
+                        ...editNovoMaterialVinculo,
+                        quantidade: normalizarDecimal(e.target.value),
+                      })
+                    }
+                    placeholder="Qtd por unidade"
+                    className="w-36 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={adicionarMaterialVinculoEdicao}
+                    disabled={!editNovoMaterialVinculo.materialId || !editNovoMaterialVinculo.quantidade}
+                    className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
+                  >
+                    Vincular
+                  </button>
+                </div>
+
+                {editServicoMateriais.length > 0 ? (
+                  <ul className="mt-4 space-y-2">
+                    {editServicoMateriais.map((v) => (
+                      <li
+                        key={v.id}
+                        className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                      >
+                        <span>
+                          {v.material?.nome_material || `Material #${v.materialId}`} — {v.quantidade} por unidade
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removerMaterialVinculoEdicao(v.materialId)}
+                          className="text-[var(--danger)] hover:opacity-80"
+                        >
+                          Remover
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-[var(--muted)]">Nenhum material vinculado.</p>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>

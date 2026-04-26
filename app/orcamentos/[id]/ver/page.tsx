@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ModalEditarPagamento } from "@/components/ModalEditarPagamento";
+import { IconPdf, IconPencil, IconTrash } from "@/components/Icons";
 import type { OrcamentoFull, PagamentoItem } from "@/lib/types";
 import {
   LABELS_STATUS,
@@ -13,7 +14,7 @@ import {
   STATUS_COLORS,
 } from "@/lib/types";
 import { calcularValorTotal, calcularTotalPago, calcularPorcentagemPaga, calcularValorRestante } from "@/lib/orcamento";
-import { formatarData, formatarPreco } from "@/lib/format";
+import { formatarData, formatarDataHora, formatarNumero, formatarPreco } from "@/lib/format";
 
 export default function OrcamentoVerPage() {
   const params = useParams();
@@ -135,7 +136,7 @@ export default function OrcamentoVerPage() {
           </Link>
         </div>
 
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
           <h1 className="text-2xl font-semibold tracking-tight">
             Orçamento nº {orcamento.id}
           </h1>
@@ -179,7 +180,7 @@ export default function OrcamentoVerPage() {
                 {formatarPreco(valorTotal)}
               </p>
               <p className="text-xs text-[var(--muted)]">
-                {porcentagem}% pago (R$ {totalPago.toLocaleString("pt-BR")})
+                {formatarNumero(porcentagem, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% pago ({formatarPreco(totalPago)})
               </p>
             </div>
           </div>
@@ -197,7 +198,7 @@ export default function OrcamentoVerPage() {
                     {s.servico?.descricao || (s.descricaoLivre ? s.descricaoLivre.replace(/<[^>]*>/g, " ").trim().slice(0, 100) : "—")}
                   </p>
                   <p className="mt-1 text-sm text-[var(--muted)]">
-                    {s.quantidade} × R$ {s.valorMaoObra.toFixed(2)} = R$ {(s.quantidade * s.valorMaoObra).toFixed(2)}
+                    {formatarNumero(s.quantidade, { minimumFractionDigits: 0, maximumFractionDigits: 3 })} × {formatarPreco(s.valorMaoObra)} = {formatarPreco(s.quantidade * s.valorMaoObra)}
                   </p>
                 </li>
               ))}
@@ -213,7 +214,7 @@ export default function OrcamentoVerPage() {
                 <li key={idx} className="flex justify-between rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
                   <span>{m.material?.nome_material || m.origemMaterial || "Material"}</span>
                   <span className="text-[var(--muted)]">
-                    {m.quantidade} × R$ {m.precoUnitario.toFixed(2)} = R$ {(m.quantidade * m.precoUnitario).toFixed(2)}
+                    {formatarNumero(m.quantidade, { minimumFractionDigits: 0, maximumFractionDigits: 3 })} × {formatarPreco(m.precoUnitario)} = {formatarPreco(m.quantidade * m.precoUnitario)}
                   </span>
                 </li>
               ))}
@@ -246,13 +247,7 @@ export default function OrcamentoVerPage() {
                         {formatarPreco(pag.valorRecebido)}
                       </td>
                       <td className="px-4 py-3 text-[var(--muted)]">
-                        {new Date(pag.data).toLocaleDateString("pt-BR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {formatarDataHora(pag.data)}
                       </td>
                       <td className="px-4 py-3 text-[var(--muted)]">
                         {LABELS_FORMA_PAGAMENTO[pag.formaPagamento as keyof typeof LABELS_FORMA_PAGAMENTO] ?? pag.formaPagamento}
@@ -262,26 +257,26 @@ export default function OrcamentoVerPage() {
                           href={`/api/pagamentos/${pag.id}/pdf`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mr-3 inline-flex items-center gap-1.5 text-[var(--muted)] hover:text-[var(--accent)]"
+                          className="mr-2 inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
                           title="PDF"
                         >
-                          <span aria-hidden>⎙</span>
+                          <IconPdf />
                         </a>
                         <button
                           type="button"
                           onClick={() => setEditandoPagamento(pag)}
-                          className="mr-3 inline-flex items-center gap-1.5 text-[var(--muted)] hover:text-[var(--accent)]"
+                          className="mr-2 inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
                           title="Editar"
                         >
-                          <span aria-hidden>✎</span>
+                          <IconPencil />
                         </button>
                         <button
                           type="button"
                           onClick={() => excluirPagamento(pag)}
-                          className="inline-flex items-center gap-1.5 text-[var(--danger)] hover:opacity-80"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--danger)] hover:bg-[var(--danger-soft)]"
                           title="Excluir"
                         >
-                          <span>🗑</span>
+                          <IconTrash />
                         </button>
                       </td>
                     </tr>

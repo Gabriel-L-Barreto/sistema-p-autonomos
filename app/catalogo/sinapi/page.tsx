@@ -1,20 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { LayoutHeader } from "@/components/LayoutHeader";
 
 const CHAVE_SINAPI = "sinapi_mg_campos_vertentes_ativo";
 
 export default function SinapiPage() {
-  const [ativo, setAtivo] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const salvo = localStorage.getItem(CHAVE_SINAPI);
-      setAtivo(salvo === "true");
-    }
-  }, []);
+  const [ativo, setAtivo] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(CHAVE_SINAPI) === "true";
+  });
 
   const alternar = () => {
     const novo = !ativo;

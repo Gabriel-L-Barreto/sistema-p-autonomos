@@ -12,12 +12,14 @@ export default function ClientesPage() {
   const [nome, setNome] = useState("");
   const [afiliacao, setAfiliacao] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmExcluir, setConfirmExcluir] = useState<{ id: number; nome: string } | null>(null);
   const [busca, setBusca] = useState("");
   const [buscaDebounce, setBuscaDebounce] = useState("");
+  const [editando, setEditando] = useState<Cliente | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [erroEdit, setErroEdit] = useState<string | null>(null);
 
   const carregarClientes = async () => {
     setLoading(true);
@@ -46,7 +48,6 @@ export default function ClientesPage() {
     setNome("");
     setAfiliacao("");
     setTelefone("");
-    setEditingId(null);
     setError(null);
   };
 
@@ -64,26 +65,14 @@ export default function ClientesPage() {
         afiliacao: afiliacao.trim() || null,
         telefone: telefone.trim() || null,
       };
-      if (editingId) {
-        const resposta = await fetch(`/api/clientes/${editingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(corpo),
-        });
-        if (!resposta.ok) {
-          const dados = await resposta.json().catch(() => ({}));
-          throw new Error(dados.error || "Falha ao atualizar");
-        }
-      } else {
-        const resposta = await fetch("/api/clientes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(corpo),
-        });
-        if (!resposta.ok) {
-          const dados = await resposta.json().catch(() => ({}));
-          throw new Error(dados.error || "Falha ao criar");
-        }
+      const resposta = await fetch("/api/clientes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corpo),
+      });
+      if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => ({}));
+        throw new Error(dados.error || "Falha ao criar");
       }
       limparFormulario();
       await carregarClientes();
@@ -94,12 +83,46 @@ export default function ClientesPage() {
     }
   };
 
+  const salvarEdicao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editando) return;
+    setErroEdit(null);
+    if (!editando.nome.trim()) {
+      setErroEdit("Nome é obrigatório.");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const resposta = await fetch(`/api/clientes/${editando.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: editando.nome.trim(),
+          afiliacao: editando.afiliacao?.trim() || null,
+          telefone: editando.telefone?.trim() || null,
+        }),
+      });
+      if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => ({}));
+        throw new Error(dados.error || "Falha ao atualizar");
+      }
+      setEditando(null);
+      await carregarClientes();
+    } catch (erro) {
+      setErroEdit(erro instanceof Error ? erro.message : "Erro ao salvar");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const editar = (c: Cliente) => {
-    setNome(c.nome);
-    setAfiliacao(c.afiliacao ?? "");
-    setTelefone(c.telefone ?? "");
-    setEditingId(c.id);
-    setError(null);
+    setErroEdit(null);
+    setEditando({
+      id: c.id,
+      nome: c.nome,
+      afiliacao: c.afiliacao ?? null,
+      telefone: c.telefone ?? null,
+    });
   };
 
   const excluir = (id: number, nomeCliente: string) => {
@@ -113,7 +136,7 @@ export default function ClientesPage() {
     try {
       const resposta = await fetch(`/api/clientes/${id}`, { method: "DELETE" });
       if (!resposta.ok) throw new Error("Falha ao excluir");
-      if (editingId === id) limparFormulario();
+      if (editando?.id === id) setEditando(null);
       await carregarClientes();
     } catch (erro) {
       setError(erro instanceof Error ? erro.message : "Erro ao excluir");
@@ -184,17 +207,8 @@ export default function ClientesPage() {
               disabled={saving}
               className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
             >
-              {editingId ? (saving ? "Salvando…" : "Atualizar") : saving ? "Salvando…" : "Cadastrar"}
+              {saving ? "Salvando…" : "Cadastrar"}
             </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={limparFormulario}
-                className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
-              >
-                Cancelar
-              </button>
-            )}
           </div>
         </form>
 
@@ -273,6 +287,60 @@ export default function ClientesPage() {
             onConfirm={executarExcluir}
             onCancel={() => setConfirmExcluir(null)}
           />
+        )}
+
+        {editando && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-soft)] p-4">
+            <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+              <h3 className="text-lg font-semibold">Editar cliente</h3>
+              <form onSubmit={salvarEdicao} className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)]">Nome *</label>
+                  <input
+                    type="text"
+                    value={editando.nome}
+                    onChange={(e) => setEditando({ ...editando, nome: e.target.value })}
+                    className={inputBase}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)]">Afiliação</label>
+                  <input
+                    type="text"
+                    value={editando.afiliacao ?? ""}
+                    onChange={(e) => setEditando({ ...editando, afiliacao: e.target.value || null })}
+                    className={inputBase}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)]">Telefone</label>
+                  <input
+                    type="text"
+                    value={editando.telefone ?? ""}
+                    onChange={(e) => setEditando({ ...editando, telefone: e.target.value || null })}
+                    className={inputBase}
+                  />
+                </div>
+                {erroEdit && <p className="text-sm text-[var(--danger)]">{erroEdit}</p>}
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditando(null)}
+                    className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingEdit}
+                    className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
+                  >
+                    {savingEdit ? "Salvando…" : "Salvar"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </main>
     </div>

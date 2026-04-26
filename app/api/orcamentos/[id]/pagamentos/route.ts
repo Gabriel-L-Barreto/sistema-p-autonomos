@@ -4,6 +4,7 @@ import {
   calcularValorTotal,
   calcularTotalPago,
 } from "@/lib/orcamento";
+import { formatarPreco } from "@/lib/format";
 
 const FORMAS_PAGAMENTO = ["DINHEIRO", "PIX", "CARTAO"] as const;
 
@@ -55,6 +56,12 @@ export async function POST(
         { status: 404 }
       );
     }
+    if (["CADASTRADO", "NAO_ACEITO"].includes(orcamento.status)) {
+      return NextResponse.json(
+        { error: "Recebimentos só podem ser registrados para orçamentos aceitos, inicializados ou finalizados." },
+        { status: 400 }
+      );
+    }
 
     const valorTotal = calcularValorTotal(
       orcamento.materiais,
@@ -67,7 +74,7 @@ export async function POST(
     if (valorNum > valorRestante) {
       return NextResponse.json(
         {
-          error: `Valor não pode exceder o restante do orçamento (R$ ${valorRestante.toFixed(2)})`,
+          error: `Valor não pode exceder o restante do orçamento (${formatarPreco(valorRestante)})`,
         },
         { status: 400 }
       );

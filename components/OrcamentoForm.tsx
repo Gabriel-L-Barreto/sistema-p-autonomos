@@ -15,7 +15,7 @@ import type {
 } from "@/lib/types";
 import { LABELS_STATUS, LABELS_MEDIDA } from "@/lib/types";
 import type { TipoMedida } from "@/lib/types";
-import { calcularValorTotal } from "@/lib/orcamento";
+import { formatarNumero, formatarPreco } from "@/lib/format";
 
 export type { OrcamentoFull };
 
@@ -27,6 +27,14 @@ type Props = {
 
 export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
   const isEdit = !!initialData;
+  const formatarDecimalEntrada = (valor: string) => {
+    let limpo = valor.replace(/[^0-9,.\s]/g, "").replace(/\s/g, "").replace(/\./g, ",");
+    const partes = limpo.split(",");
+    if (partes.length > 2) {
+      limpo = partes[0] + "," + partes.slice(1).join("");
+    }
+    return limpo;
+  };
 
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [materiais, setMateriais] = useState<Material[]>([]);
@@ -376,7 +384,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
           valorMaoObra,
         },
       ]);
-      let materiaisParaAcrescentar: MaterialOrcamento[] = [];
+      const materiaisParaAcrescentar: MaterialOrcamento[] = [];
       try {
         const resServ = await fetch(`/api/servicos/${servicoSelecionadoId}`);
         if (resServ.ok) {
@@ -469,8 +477,6 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       setError("Adicione pelo menos um serviço ao orçamento");
       return;
     }
-    const pdfWindow = !isEdit ? window.open("about:blank", "_blank") : null;
-
     setSaving(true);
     try {
       let orcamentoId: number;
@@ -531,21 +537,31 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       }
 
       for (const mat of materiaisOrcamento) {
-        await fetch(`/api/orcamentos/${orcamentoId}/materiais`, {
+        const resposta = await fetch(`/api/orcamentos/${orcamentoId}/materiais`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(mat),
         });
+        if (!resposta.ok) {
+          const dados = await resposta.json().catch(() => ({}));
+          throw new Error(dados.error || "Falha ao adicionar material no orçamento");
+        }
       }
       for (const serv of servicosOrcamento) {
-        await fetch(`/api/orcamentos/${orcamentoId}/servicos`, {
+        const resposta = await fetch(`/api/orcamentos/${orcamentoId}/servicos`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(serv),
         });
+        if (!resposta.ok) {
+          const dados = await resposta.json().catch(() => ({}));
+          throw new Error(dados.error || "Falha ao adicionar serviço no orçamento");
+        }
       }
 
-      if (pdfWindow) pdfWindow.location.href = `/api/orcamentos/${orcamentoId}/pdf`;
+      if (!isEdit) {
+        window.open(`/api/orcamentos/${orcamentoId}/pdf`, "_blank", "noopener,noreferrer");
+      }
       onSuccess(orcamentoId);
     } catch (erro) {
       setError(erro instanceof Error ? erro.message : "Erro ao salvar");
@@ -560,6 +576,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
 
   const inputBase = "w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]";
   const labelBase = "mb-1 block text-sm font-medium text-[var(--muted)]";
+  const requiredMark = <span className="text-[var(--danger)]">*</span>;
 
   return (
     <form onSubmit={salvar} className="space-y-6">
@@ -574,7 +591,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className={labelBase}>Cliente *</label>
+              <label className={labelBase}>Cliente {requiredMark}</label>
               <AutocompleteCliente
                 clientes={clientes}
                 value={clienteBusca}
@@ -594,7 +611,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
               </Link>
             </div>
             <div>
-              <label className={labelBase}>Endereço *</label>
+              <label className={labelBase}>Endereço {requiredMark}</label>
               <input
                 type="text"
                 value={endereco}
@@ -688,7 +705,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                 setNovoMaterial((prev) => ({
                   ...prev,
                   medidaMaterial: (mat.unidadeMedida || "UNITARIO") as TipoMedida,
-                  precoUnitario: String(mat.precoUnitario),
+                  precoUnitario: String(mat.precoUnitario).replace(".", ","),
                   origemMaterial: isSinapi && codigo ? `SINAPI MG - ${codigo}` : prev.origemMaterial,
                 }));
               }}
@@ -733,7 +750,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
             />
           </div>
           <div className="col-span-2 sm:col-span-1 lg:col-span-2">
-            <label className={labelBase}>Quantidade *</label>
+            <label className={labelBase}>Quantidade {requiredMark}</label>
             <input
               type="text"
               inputMode="numeric"
@@ -747,13 +764,13 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
             />
           </div>
           <div className="col-span-2 sm:col-span-1 lg:col-span-2">
-            <label className={labelBase}>Preço unit. *</label>
+            <label className={labelBase}>Preço unit. {requiredMark}</label>
             <input
               type="text"
               inputMode="decimal"
               value={novoMaterial.precoUnitario}
               onChange={(e) => {
-                const v = e.target.value.replace(/[^0-9,.]/g, "").replace(",", ".");
+                const v = formatarDecimalEntrada(e.target.value);
                 setNovoMaterial({ ...novoMaterial, precoUnitario: v });
               }}
               className={`${inputBase} min-w-[5rem]`}
@@ -763,9 +780,9 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
           <div className="col-span-2 sm:col-span-1 lg:col-span-1 flex flex-col justify-end">
             <label className={labelBase}>Total</label>
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--foreground)]">
-              R$ {materiaisOrcamento.length > 0 && incluiMaterial
-                ? materiaisOrcamento.reduce((s, m) => s + m.quantidade * m.precoUnitario, 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : "0,00"}
+              {materiaisOrcamento.length > 0 && incluiMaterial
+                ? formatarPreco(materiaisOrcamento.reduce((s, m) => s + m.quantidade * m.precoUnitario, 0))
+                : formatarPreco(0)}
             </div>
           </div>
         </div>
@@ -791,9 +808,9 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                     {mat.material?.nome_material || mat.origemMaterial || "Material personalizado"}
                   </span>
                   <span className="ml-2 text-sm text-[var(--muted)]">
-                    {mat.quantidade} {mat.medidaMaterial || "un"} × R${" "}
-                    {mat.precoUnitario.toFixed(2)} = R${" "}
-                    {(mat.quantidade * mat.precoUnitario).toFixed(2)}
+                    {formatarNumero(mat.quantidade, { minimumFractionDigits: 0, maximumFractionDigits: 3 })} {mat.medidaMaterial || "un"} ×{" "}
+                    {formatarPreco(mat.precoUnitario)} ={" "}
+                    {formatarPreco(mat.quantidade * mat.precoUnitario)}
                   </span>
                 </div>
                 <button
@@ -810,12 +827,12 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6">
-        <h2 className="mb-2 text-lg font-semibold text-[var(--foreground)]">Serviços *</h2>
+        <h2 className="mb-2 text-lg font-semibold text-[var(--foreground)]">Serviços {requiredMark}</h2>
         <p className="mb-4 text-sm text-[var(--muted)]">
           Utilize serviços catalogados ou adicione um escrevendo e preenchendo as informações. Lembre-se de preencher o valor unitário da mão de obra.
         </p>
         <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-12">
-          <div className="sm:col-span-6 lg:col-span-5">
+          <div className="sm:col-span-6 lg:col-span-6 flex flex-col justify-end">
             <label className={labelBase}>Serviço</label>
             <AutocompleteCatalogo
               tipo="servico"
@@ -831,7 +848,7 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                 setServicoBusca(serv.descricao);
                 setNovoServico((prev) => ({
                   ...prev,
-                  valorMaoObra: String(serv.precoBase),
+                  valorMaoObra: String(serv.precoBase).replace(".", ","),
                 }));
               }}
               itens={[...servicos, ...sinapiServicos]}
@@ -846,42 +863,42 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
               }}
             />
           </div>
-          <div className="sm:col-span-2 lg:col-span-2">
-            <label className={labelBase}>Quantidade *</label>
+          <div className="sm:col-span-2 lg:col-span-2 flex flex-col justify-end">
+            <label className={labelBase}>Quantidade {requiredMark}</label>
             <input
               type="text"
               inputMode="decimal"
               value={novoServico.quantidade}
               onChange={(e) => {
-                let v = e.target.value.replace(/[^0-9,.]/g, "").replace(",", ".");
-                const partes = v.split(".");
-                if (partes.length > 2) v = partes[0] + "." + partes.slice(1).join("");
+                let v = formatarDecimalEntrada(e.target.value);
+                const partes = v.split(",");
+                if (partes.length > 2) v = partes[0] + "," + partes.slice(1).join("");
                 setNovoServico({ ...novoServico, quantidade: v });
               }}
               className={inputBase}
               placeholder=" "
             />
           </div>
-          <div className="sm:col-span-2 lg:col-span-2">
-            <label className={labelBase}>Valor mão de obra *</label>
+          <div className="sm:col-span-2 lg:col-span-2 flex flex-col justify-end">
+            <label className={labelBase}>Valor mão de obra {requiredMark}</label>
             <input
               type="text"
               inputMode="decimal"
               value={novoServico.valorMaoObra}
               onChange={(e) => {
-                const v = e.target.value.replace(/[^0-9,.]/g, "").replace(",", ".");
+                const v = formatarDecimalEntrada(e.target.value);
                 setNovoServico({ ...novoServico, valorMaoObra: v });
               }}
               className={`${inputBase} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
               placeholder="0,00"
             />
           </div>
-          <div className="sm:col-span-2 lg:col-span-1 flex flex-col justify-end">
+          <div className="sm:col-span-2 lg:col-span-2 flex flex-col justify-end">
             <label className={labelBase}>Total serviços</label>
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm font-medium text-[var(--foreground)]">
-              R$ {servicosOrcamento.length > 0
-                ? servicosOrcamento.reduce((s, srv) => s + srv.quantidade * srv.valorMaoObra, 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : "0,00"}
+              {servicosOrcamento.length > 0
+                ? formatarPreco(servicosOrcamento.reduce((s, srv) => s + srv.quantidade * srv.valorMaoObra, 0))
+                : formatarPreco(0)}
             </div>
           </div>
         </div>
@@ -925,8 +942,8 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                           : "") || "Serviço"}
                     </div>
                     <div className="mt-1 text-sm text-[var(--muted)]">
-                      {serv.quantidade} × R$ {serv.valorMaoObra.toFixed(2)} = R${" "}
-                      {(serv.quantidade * serv.valorMaoObra).toFixed(2)}
+                      {formatarNumero(serv.quantidade, { minimumFractionDigits: 0, maximumFractionDigits: 3 })} × {formatarPreco(serv.valorMaoObra)} ={" "}
+                      {formatarPreco(serv.quantidade * serv.valorMaoObra)}
                     </div>
                   </div>
                   <button

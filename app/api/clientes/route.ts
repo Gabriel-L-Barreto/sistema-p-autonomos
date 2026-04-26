@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { truncarTexto } from "@/lib/sanitize";
+import { resolveOwnerAutonomoIdForCreate } from "@/lib/resolve-owner-autonomo";
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { nome, afiliacao, telefone } = body;
+    const { nome, afiliacao, telefone, ownerAutonomoId: ownerAutonomoIdBody } = body;
 
     if (!nome || typeof nome !== "string" || nome.trim() === "") {
       return NextResponse.json(
@@ -42,12 +43,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cliente = await prisma.cliente.create({
-      data: {
-        nome: truncarTexto(nome.trim()),
-        afiliacao: afiliacao && typeof afiliacao === "string" ? truncarTexto(afiliacao.trim()) || null : null,
-        telefone: telefone && typeof telefone === "string" ? truncarTexto(telefone.trim()) || null : null,
-      },
+    const cliente = await prisma.$transaction(async (tx) => {
+      const ownerAutonomoId = await resolveOwnerAutonomoIdForCreate(tx, ownerAutonomoIdBody);
+      return tx.cliente.create({
+        data: {
+          ownerAutonomoId,
+          nome: truncarTexto(nome.trim()),
+          afiliacao: afiliacao && typeof afiliacao === "string" ? truncarTexto(afiliacao.trim()) || null : null,
+          telefone: telefone && typeof telefone === "string" ? truncarTexto(telefone.trim()) || null : null,
+        },
+      });
     });
 
     return NextResponse.json(cliente, { status: 201 });

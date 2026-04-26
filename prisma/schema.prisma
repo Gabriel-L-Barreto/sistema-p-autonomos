@@ -28,16 +28,29 @@ enum Status {
   FINALIZADO
 }
 
+model Autonomo {
+  id         Int         @id @default(autoincrement())
+  nome       String
+  orcamentos Orcamento[]
+
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@map("autonomos")
+}
+
 model Cliente {
   id         Int         @id @default(autoincrement())
   nome       String
   afiliacao  String?
   telefone   String?
+  ownerAutonomoId Int
   orcamentos Orcamento[]
   
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
+  @@index([ownerAutonomoId])
   @@map("clientes")
 }
 
@@ -47,12 +60,14 @@ model Material {
   unidadeMedida      TipoMedida
   precoUnitario      Float
   ativo              Boolean              @default(true)
+  ownerAutonomoId    Int
   materiaisOrcamento MaterialOrcamento[]
   servicoMateriais   ServicoMaterial[]
 
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 
+  @@index([ownerAutonomoId])
   @@map("materiais")
 }
 
@@ -62,12 +77,14 @@ model Servico {
   tipo_cobranca TipoMedida
   precoBase    Float
   servicoAtivo Boolean              @default(true)
+  ownerAutonomoId Int
   servicosOrcamento ServicoOrcamento[]
   servicoMateriais  ServicoMaterial[]
 
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
 
+  @@index([ownerAutonomoId])
   @@map("servicos")
 }
 
@@ -92,6 +109,9 @@ model Orcamento {
   totalParcelas  Float?
   status         Status             @default(CADASTRADO)
   complemento    String?            @db.Text
+
+  ownerAutonomoId Int
+  ownerAutonomo   Autonomo           @relation(fields: [ownerAutonomoId], references: [id], onDelete: Restrict)
   
   clienteId      Int
   cliente        Cliente            @relation(fields: [clienteId], references: [id], onDelete: Cascade)
@@ -104,6 +124,7 @@ model Orcamento {
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
+  @@index([ownerAutonomoId])
   @@map("orcamentos")
 }
 
@@ -180,6 +201,8 @@ model EmpresaConfig {
   rodapeLocal      String?  @db.VarChar(10) // inicio, meio, fim
   logoUrl          String?  @db.Text
   timbradoUrl      String?  @db.Text
+  timbradoRecebimentoUrl String? @db.Text
+  pixQrCodeUrl     String?  @db.Text
   nomeAssinatura   String
   cidadeEmissao    String?
 

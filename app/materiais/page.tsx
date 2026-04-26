@@ -23,12 +23,21 @@ export default function MateriaisPage() {
   const [nome_material, setNomeMaterial] = useState("");
   const [unidadeMedida, setUnidadeMedida] = useState<TipoMedidaCatalogo>("UNITARIO");
   const [precoUnitario, setPrecoUnitario] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmExcluir, setConfirmExcluir] = useState<{ id: number; nome: string } | null>(null);
   const [busca, setBusca] = useState("");
   const [buscaDebounce, setBuscaDebounce] = useState("");
+  const [editando, setEditando] = useState<MaterialCatalogo | null>(null);
+  const [editPreco, setEditPreco] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [erroEdit, setErroEdit] = useState<string | null>(null);
+  const normalizarDecimal = (valor: string) => {
+    let limpo = valor.replace(/[^0-9,.\s]/g, "").replace(/\s/g, "").replace(/\./g, ",");
+    const partes = limpo.split(",");
+    if (partes.length > 2) limpo = partes[0] + "," + partes.slice(1).join("");
+    return limpo;
+  };
 
   const carregarMateriais = async () => {
     setLoading(true);
@@ -57,14 +66,13 @@ export default function MateriaisPage() {
     setNomeMaterial("");
     setUnidadeMedida("UNITARIO");
     setPrecoUnitario("");
-    setEditingId(null);
     setError(null);
   };
 
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const preco = parseFloat(precoUnitario);
+    const preco = parseFloat(precoUnitario.replace(",", "."));
     if (!nome_material.trim()) {
       setError("Nome do material é obrigatório.");
       return;
@@ -80,26 +88,14 @@ export default function MateriaisPage() {
         unidadeMedida,
         precoUnitario: preco,
       };
-      if (editingId) {
-        const resposta = await fetch(`/api/materiais/${editingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(corpo),
-        });
-        if (!resposta.ok) {
-          const dados = await resposta.json().catch(() => ({}));
-          throw new Error(dados.error || "Falha ao atualizar");
-        }
-      } else {
-        const resposta = await fetch("/api/materiais", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(corpo),
-        });
-        if (!resposta.ok) {
-          const dados = await resposta.json().catch(() => ({}));
-          throw new Error(dados.error || "Falha ao criar");
-        }
+      const resposta = await fetch("/api/materiais", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corpo),
+      });
+      if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => ({}));
+        throw new Error(dados.error || "Falha ao criar");
       }
       limparFormulario();
       await carregarMateriais();
@@ -111,11 +107,47 @@ export default function MateriaisPage() {
   };
 
   const editar = (m: MaterialCatalogo) => {
-    setNomeMaterial(m.nome_material);
-    setUnidadeMedida(m.unidadeMedida);
-    setPrecoUnitario(String(m.precoUnitario));
-    setEditingId(m.id);
-    setError(null);
+    setErroEdit(null);
+    setEditando({ ...m });
+    setEditPreco(String(m.precoUnitario).replace(".", ","));
+  };
+
+  const salvarEdicao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editando) return;
+    setErroEdit(null);
+    const preco = parseFloat(editPreco.replace(",", "."));
+    if (!editando.nome_material.trim()) {
+      setErroEdit("Nome do material é obrigatório.");
+      return;
+    }
+    if (Number.isNaN(preco) || preco < 0) {
+      setErroEdit("Preço unitário deve ser um número maior ou igual a zero.");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const resposta = await fetch(`/api/materiais/${editando.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome_material: editando.nome_material.trim(),
+          unidadeMedida: editando.unidadeMedida,
+          precoUnitario: preco,
+        }),
+      });
+      if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => ({}));
+        throw new Error(dados.error || "Falha ao atualizar");
+      }
+      setEditando(null);
+      setEditPreco("");
+      await carregarMateriais();
+    } catch (erro) {
+      setErroEdit(erro instanceof Error ? erro.message : "Erro ao salvar");
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const alternarAtivo = async (m: MaterialCatalogo) => {
@@ -127,7 +159,9 @@ export default function MateriaisPage() {
       });
       if (!resposta.ok) throw new Error("Falha ao atualizar");
       await carregarMateriais();
-      if (editingId === m.id) limparFormulario();
+      if (editando?.id === m.id) {
+        setEditando({ ...m, ativo: !m.ativo });
+      }
     } catch (erro) {
       setError(erro instanceof Error ? erro.message : "Erro ao atualizar");
     }
@@ -144,7 +178,7 @@ export default function MateriaisPage() {
     try {
       const resposta = await fetch(`/api/materiais/${id}`, { method: "DELETE" });
       if (!resposta.ok) throw new Error("Falha ao excluir");
-      if (editingId === id) limparFormulario();
+      if (editando?.id === id) setEditando(null);
       await carregarMateriais();
     } catch (erro) {
       setError(erro instanceof Error ? erro.message : "Erro ao excluir");
@@ -202,9 +236,7 @@ export default function MateriaisPage() {
                 inputMode="decimal"
                 value={precoUnitario}
                 onChange={(e) => {
-                  const v = e.target.value.replace(/[^0-9,.]/g, "").replace(",", ".");
-                  const partes = v.split(".");
-                  if (partes.length <= 2) setPrecoUnitario(partes.length === 2 ? `${partes[0]}.${partes[1]}` : v);
+                  setPrecoUnitario(normalizarDecimal(e.target.value));
                 }}
                 className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
                 placeholder="0,00"
@@ -218,13 +250,8 @@ export default function MateriaisPage() {
               disabled={saving}
               className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
             >
-              {editingId ? (saving ? "Salvando…" : "Atualizar") : saving ? "Salvando…" : "Cadastrar"}
+              {saving ? "Salvando…" : "Cadastrar"}
             </button>
-            {editingId && (
-              <button type="button" onClick={limparFormulario} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--muted)] hover:bg-[var(--surface-elevated)]">
-                Cancelar
-              </button>
-            )}
           </div>
         </form>
 
@@ -304,6 +331,68 @@ export default function MateriaisPage() {
             onConfirm={executarExcluir}
             onCancel={() => setConfirmExcluir(null)}
           />
+        )}
+
+        {editando && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-soft)] p-4">
+            <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+              <h3 className="text-lg font-semibold">Editar material</h3>
+              <form onSubmit={salvarEdicao} className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)]">Nome do material *</label>
+                  <input
+                    type="text"
+                    value={editando.nome_material}
+                    onChange={(e) => setEditando({ ...editando, nome_material: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)]">Unidade de medida</label>
+                  <select
+                    value={editando.unidadeMedida}
+                    onChange={(e) => setEditando({ ...editando, unidadeMedida: e.target.value as TipoMedidaCatalogo })}
+                    className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+                  >
+                    <option value="UNITARIO">Unitário</option>
+                    <option value="M2">M²</option>
+                    <option value="M3">M³</option>
+                    <option value="METROS">Metros</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)]">Preço unitário (R$)</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={editPreco}
+                    onChange={(e) => setEditPreco(normalizarDecimal(e.target.value))}
+                    className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+                  />
+                </div>
+                {erroEdit && <p className="text-sm text-[var(--danger)]">{erroEdit}</p>}
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditando(null);
+                      setEditPreco("");
+                    }}
+                    className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)] hover:bg-[var(--surface-elevated)]"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingEdit}
+                    className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
+                  >
+                    {savingEdit ? "Salvando…" : "Salvar"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </main>
     </div>

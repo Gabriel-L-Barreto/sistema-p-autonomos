@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sanitizarHtml, truncarTexto } from "@/lib/sanitize";
-import { Prisma } from "@prisma/client";
 
 export async function GET(
   _request: NextRequest,
@@ -110,9 +109,12 @@ export async function PUT(
     });
 
     if (status !== undefined && statusAtual && status !== statusAtual.status) {
-      await prisma.$executeRaw(
-        Prisma.sql`INSERT INTO "orcamento_status_historico" ("orcamentoId", "status", "data") VALUES (${idNum}, ${status}::"Status", NOW())`
-      );
+      await prisma.orcamentoStatusHistorico.create({
+        data: {
+          orcamentoId: idNum,
+          status,
+        },
+      });
     }
 
     return NextResponse.json(orcamento);

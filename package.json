@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint",
+    "import:legacy": "tsx scripts/import-legacy-orcamentos.ts",
+    "fix:orcamentos-sequence": "tsx scripts/fix-orcamentos-sequence.ts",
     "db:seed": "tsx prisma/seed.ts",
     "postinstall": "prisma generate"
   },

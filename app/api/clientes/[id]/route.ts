@@ -82,8 +82,44 @@ export async function DELETE(
       return NextResponse.json({ error: "ID inválido" }, { status: 400 });
     }
 
-    await prisma.cliente.delete({
+    const cliente = await prisma.cliente.findUnique({
       where: { id: idNum },
+      select: { id: true, ownerAutonomoId: true },
+    });
+    if (!cliente) {
+      return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
+    }
+
+    const clienteSubstitutoNome = "Cliente removido";
+
+    await prisma.$transaction(async (tx) => {
+      let clienteSubstituto = await tx.cliente.findFirst({
+        where: {
+          ownerAutonomoId: cliente.ownerAutonomoId,
+          nome: clienteSubstitutoNome,
+        },
+        orderBy: { id: "asc" },
+      });
+
+      if (!clienteSubstituto) {
+        clienteSubstituto = await tx.cliente.create({
+          data: {
+            ownerAutonomoId: cliente.ownerAutonomoId,
+            nome: clienteSubstitutoNome,
+            afiliacao: null,
+            telefone: null,
+          },
+        });
+      }
+
+      await tx.orcamento.updateMany({
+        where: { clienteId: idNum },
+        data: { clienteId: clienteSubstituto.id },
+      });
+
+      await tx.cliente.delete({
+        where: { id: idNum },
+      });
     });
 
     return NextResponse.json({ ok: true });

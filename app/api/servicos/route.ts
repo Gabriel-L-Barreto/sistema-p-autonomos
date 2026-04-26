@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { resolveOwnerAutonomoIdForCreate } from "@/lib/resolve-owner-autonomo";
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { descricao, tipo_cobranca, unidade_medida, precoBase } = body;
+    const { descricao, tipo_cobranca, unidade_medida, precoBase, ownerAutonomoId: ownerAutonomoIdBody } = body;
     const tipoCobranca = tipo_cobranca ?? unidade_medida;
 
     if (
@@ -70,13 +71,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const servico = await prisma.servico.create({
-      data: {
-        descricao: descricaoTrim,
-        tipo_cobranca: tipoCobrancaFinal,
-        precoBase,
-        servicoAtivo: true,
-      },
+    const servico = await prisma.$transaction(async (tx) => {
+      const ownerAutonomoId = await resolveOwnerAutonomoIdForCreate(tx, ownerAutonomoIdBody);
+      return tx.servico.create({
+        data: {
+          ownerAutonomoId,
+          descricao: descricaoTrim,
+          tipo_cobranca: tipoCobrancaFinal,
+          precoBase,
+          servicoAtivo: true,
+        },
+      });
     });
 
     return NextResponse.json(servico, { status: 201 });
