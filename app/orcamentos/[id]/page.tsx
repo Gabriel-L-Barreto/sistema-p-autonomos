@@ -75,7 +75,7 @@ export default function OrcamentoDetalhePage() {
         { label: "Editar" },
       ]} />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         <div className="mb-6 flex flex-wrap items-center gap-4">
           <Link href="/orcamentos" className="inline-flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--accent)]">
             <IconArrowLeft className="h-4 w-4" /> Voltar para lista

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import {
   calcularValorTotal,
   calcularTotalPago,
+  calcularValorParcela,
 } from "@/lib/orcamento";
 
 const FORMAS_PAGAMENTO = ["DINHEIRO", "PIX", "CARTAO"] as const;
@@ -82,7 +83,7 @@ export async function POST(
     }
 
     const parcelasRestantes = Math.max(1, qtd - pagamentosExistentes);
-    const valorParcela = Math.round((valorRestante / parcelasRestantes) * 100) / 100;
+    const valorParcela = calcularValorParcela(valorRestante, parcelasRestantes);
 
     const novaQtdParcelas = Math.max(qtd, pagamentosExistentes + 1);
 

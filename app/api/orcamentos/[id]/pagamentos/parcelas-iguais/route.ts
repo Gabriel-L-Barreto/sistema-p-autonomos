@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import {
-  calcularValorTotal,
-  calcularTotalPago,
-} from "@/lib/orcamento";
 
 const FORMAS_PAGAMENTO = ["DINHEIRO", "PIX", "CARTAO"] as const;
 

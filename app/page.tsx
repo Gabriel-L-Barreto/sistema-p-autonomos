@@ -76,7 +76,7 @@ export default function Home() {
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">Bem-vindo(a)</h1>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              Crie orçamentos e e recebimentos
+              Sistema de gerenciamento de orçamentos e recebimentos
             </p>
           </div>
           <button
@@ -97,20 +97,36 @@ export default function Home() {
           </button>
         </div>
 
-        <section className="mt-8">
+        <section className="mt-8" aria-label="Ação principal">
           <Link
             href="/orcamentos/novo"
-            className="home-hero-card group relative block overflow-hidden rounded-2xl border border-[var(--accent)] bg-[var(--accent)] p-6 text-[var(--on-accent)] shadow-sm transition hover:shadow-md"
+            className="home-hero-card group relative flex w-full items-center gap-4 overflow-hidden rounded-2xl border-2 border-[var(--accent)] bg-[var(--accent)] p-5 text-left text-[var(--on-accent)] shadow-md transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] sm:gap-5 sm:p-6"
+            aria-label="Criar novo orçamento — abre o formulário de cadastro"
           >
             <div className="pointer-events-none absolute inset-y-0 right-0 w-40 bg-white/10 blur-2xl transition group-hover:bg-white/15" />
-            <div className="relative grid gap-5 md:grid-cols-[1fr_auto] md:items-end">
-              <div>
-                <h2 className="text-2xl font-semibold tracking-tight">Novo orçamento</h2>
-              </div>
-              <div className="relative inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-[var(--accent)] transition group-hover:translate-x-0.5">
-                Cadastrar novo <IconChevronRight className="h-4 w-4" />
-              </div>
-            </div>
+
+            <span
+              aria-hidden
+              className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30 transition group-hover:bg-white/25 sm:h-14 sm:w-14"
+            >
+              <IconFileText className="h-6 w-6 sm:h-7 sm:w-7" />
+            </span>
+
+            <span className="relative min-w-0 flex-1">
+              <h2 className="text-lg font-bold tracking-tight sm:text-2xl">
+                Novo orçamento
+              </h2>
+              <p className="mt-1 text-sm text-white/85 sm:text-base">
+                Clique aqui para montar um orçamento
+              </p>
+            </span>
+
+            <span
+              aria-hidden
+              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[var(--accent)] shadow-sm transition group-hover:translate-x-0.5 group-hover:shadow md:h-11 md:w-11"
+            >
+              <IconChevronRight className="h-5 w-5" />
+            </span>
           </Link>
         </section>
 

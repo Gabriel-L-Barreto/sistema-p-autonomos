@@ -22,21 +22,6 @@ export function formatarPreco(valor: number): string {
 }
 
 /**
- * Formata um número como moeda com opções customizadas.
- */
-export function formatarMoeda(
-  valor: number,
-  opts?: { minimumFractionDigits?: number; maximumFractionDigits?: number }
-): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    minimumFractionDigits: opts?.minimumFractionDigits ?? 2,
-    maximumFractionDigits: opts?.maximumFractionDigits ?? 2,
-  }).format(valor);
-}
-
-/**
  * Formata um número comum com separadores pt-BR.
  */
 export function formatarNumero(

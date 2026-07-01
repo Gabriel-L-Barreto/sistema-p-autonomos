@@ -74,6 +74,7 @@ export async function GET(
       })),
       servicos: orc.servicos.map((s) => ({
         descricaoLivre: s.descricaoLivre,
+        medidaServico: s.medidaServico != null ? String(s.medidaServico) : null,
         quantidade: s.quantidade,
         valorMaoObra: s.valorMaoObra,
         servico: s.servico ? { descricao: s.servico.descricao, tipo_cobranca: s.servico.tipo_cobranca } : null,

@@ -33,17 +33,13 @@ export async function GET() {
     const inicioProximoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
     const inicioAno = new Date(agora.getFullYear(), 0, 1);
     const inicioProximoAno = new Date(agora.getFullYear() + 1, 0, 1);
-    const inicioAbril = new Date(agora.getFullYear(), 3, 1);
+    // Início do período operacional considerado no painel. Orçamentos anteriores
+    // a esta data são apenas EXCLUÍDOS das agregações exibidas (filtro de leitura),
+    // sem qualquer alteração de estado no banco. O dashboard é somente leitura:
+    // uma consulta não deve mutar dados (rastreabilidade e previsibilidade).
+    const inicioPeriodoPainel = new Date(agora.getFullYear(), 3, 1);
     const cincoDiasMs = 5 * 24 * 60 * 60 * 1000;
     const quinzeDiasMs = 15 * 24 * 60 * 60 * 1000;
-
-    await prisma.orcamento.updateMany({
-      where: {
-        data: { lt: inicioAbril },
-        NOT: { status: "NAO_ACEITO" },
-      },
-      data: { status: "NAO_ACEITO" },
-    });
 
     let cadastrados = 0;
     let inicializados = 0;
@@ -79,7 +75,7 @@ export async function GET() {
     };
 
     for (const o of lista) {
-      if (o.data < inicioAbril) continue;
+      if (o.data < inicioPeriodoPainel) continue;
 
       const valorTotal = calcularValorTotal(o.materiais, o.servicos, o.incluiMaterial);
       const valorPago = calcularTotalPago(o.pagamentos);

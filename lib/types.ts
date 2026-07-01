@@ -36,6 +36,7 @@ export type ServicoOrcamento = {
   servicoId: number | null;
   servico: Servico | null;
   descricaoLivre: string | null;
+  medidaServico?: TipoMedida | null;
   quantidade: number;
   valorMaoObra: number;
 };

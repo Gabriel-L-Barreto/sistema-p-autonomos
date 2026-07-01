@@ -17,6 +17,7 @@ export type OrcamentoParaPdf = {
   }[];
   servicos: {
     descricaoLivre: string | null;
+    medidaServico?: string | null;
     quantidade: number;
     valorMaoObra: number;
     servico?: { descricao: string; tipo_cobranca?: string } | null;
@@ -92,7 +93,7 @@ function construirLinhasServicos(orc: OrcamentoParaPdf): string[] {
   for (const serv of orc.servicos) {
     const desc = serv.descricaoLivre || serv.servico?.descricao || "Serviço";
     const qtd = serv.quantidade;
-    const un = unidadeParaTexto(serv.servico?.tipo_cobranca);
+    const un = unidadeParaTexto(serv.servico?.tipo_cobranca ?? serv.medidaServico);
     if (un === "un") {
       linhas.push(formatarServicoUnitario(desc, qtd));
     } else {
@@ -127,7 +128,6 @@ export function gerarPdf(
   const zonaInfoLargura = zonaLargura - logoLargura;
   const infoX = MARGEM_CM + logoLargura;
   const cabecalhoLinhas = config.cabecalho.split("\n").filter((l) => l.trim());
-  const rodapeLargura = zonaLargura / 2;
 
   // ========== TIMBRADO PNG (fundo - 100%, exatamente como é) ==========
   if (config.timbradoUrl && config.timbradoUrl.trim()) {

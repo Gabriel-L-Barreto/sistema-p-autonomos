@@ -14,7 +14,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { servicoId, descricaoLivre, quantidade, valorMaoObra } = body;
+    const { servicoId, descricaoLivre, medidaServico, quantidade, valorMaoObra } = body;
 
     if (typeof quantidade !== "number" || quantidade <= 0) {
       return NextResponse.json(
@@ -57,11 +57,20 @@ export async function POST(
       ? sanitizarHtml(descricaoLivre.trim()) || null
       : null;
 
+    const medidasValidas = ["UNITARIO", "M2", "M3", "METROS"] as const;
+    const medidaServicoFinal =
+      servicoId !== undefined && servicoId !== null
+        ? null
+        : medidaServico && medidasValidas.includes(medidaServico)
+          ? medidaServico
+          : "UNITARIO";
+
     const servicoOrcamento = await prisma.servicoOrcamento.create({
       data: {
         orcamentoId,
         servicoId: servicoId || null,
         descricaoLivre: descricaoLivreLimpa,
+        medidaServico: medidaServicoFinal,
         quantidade,
         valorMaoObra,
       },

@@ -162,6 +162,7 @@ model MaterialOrcamento {
 model ServicoOrcamento {
   id            Int       @id @default(autoincrement())
   descricaoLivre String?  @db.Text
+  medidaServico TipoMedida?
   quantidade    Float
   valorMaoObra  Float
   

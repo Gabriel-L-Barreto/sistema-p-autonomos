@@ -6,7 +6,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; servicoId: string }> }
 ) {
   try {
-    const { id, servicoId } = await params;
+    const { servicoId } = await params;
     const servicoOrcamentoId = parseInt(servicoId, 10);
     if (Number.isNaN(servicoOrcamentoId)) {
       return NextResponse.json({ error: "ID do serviço inválido" }, { status: 400 });

@@ -248,8 +248,8 @@ function OrcamentosListaContent() {
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Orçamentos</h1>
-            <p className="mt-1 text-sm text-[var(--muted)]">Gerencie orçamentos e recebimentos.</p>
+            <h1 className="text-2xl font-semibold tracking-tight">Listagem de orçamentos</h1>
+            <p className="mt-1 text-sm text-[var(--muted)]">Para registar um recebimento, você deve mudar o status para "Iniciado", "Finalizado" ou "Aceito".</p>
           </div>
           <Link
             href="/orcamentos/novo"

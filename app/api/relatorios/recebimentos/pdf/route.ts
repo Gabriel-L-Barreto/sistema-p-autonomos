@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
     doc.moveDown(1);
 
     const tableStartX = 50;
-    const tableWidth = 495;
     const drawHeader = (columns: Array<{ label: string; width: number }>) => {
       const headerY = doc.y;
       let x = tableStartX;

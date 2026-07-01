@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LayoutHeader } from "@/components/LayoutHeader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { AutocompleteCatalogo } from "@/components/AutocompleteCatalogo";
 import { IconPencil, IconTrash, IconToggleOn, IconToggleOff } from "@/components/Icons";
 import { formatarPreco } from "@/lib/format";
 
@@ -99,6 +100,7 @@ export default function ServicosPage() {
     setError(null);
     setMateriaisPendentes([]);
     setNovoMaterialVinculo({ materialId: "" as number | "", quantidade: "" });
+    setBuscaMaterialVinculo("");
   };
 
   const adicionarMaterialVinculo = async () => {
@@ -109,6 +111,7 @@ export default function ServicosPage() {
     const material = materiais.find((m) => m.id === materialId);
     if (!material) return;
     setNovoMaterialVinculo({ materialId: "" as number | "", quantidade: "" });
+    setBuscaMaterialVinculo("");
     setMateriaisPendentes((prev) => [...prev, { materialId, quantidade: qtd, material }]);
   };
 
@@ -194,6 +197,7 @@ export default function ServicosPage() {
         return [...semMesmo, dados];
       });
       setEditNovoMaterialVinculo({ materialId: "", quantidade: "" });
+      setEditBuscaMaterialVinculo("");
     } catch (erro) {
       setErroEdit(erro instanceof Error ? erro.message : "Erro ao vincular material");
     }
@@ -287,15 +291,11 @@ export default function ServicosPage() {
     }
   };
 
-  const materiaisFiltradosVinculo = materiais.filter(
-    (m) =>
-      m.ativo !== false &&
-      m.nome_material.toLowerCase().includes(buscaMaterialVinculo.toLowerCase().trim())
+  const materiaisDisponiveisVinculo = materiais.filter(
+    (m) => m.ativo !== false && !materiaisPendentes.some((p) => p.materialId === m.id)
   );
-  const materiaisFiltradosVinculoEdicao = materiais.filter(
-    (m) =>
-      m.ativo !== false &&
-      m.nome_material.toLowerCase().includes(editBuscaMaterialVinculo.toLowerCase().trim())
+  const materiaisDisponiveisVinculoEdicao = materiais.filter(
+    (m) => m.ativo !== false && !editServicoMateriais.some((v) => v.materialId === m.id)
   );
 
   return (
@@ -376,47 +376,63 @@ export default function ServicosPage() {
           <p className="mt-1 text-xs text-[var(--muted)]">
             Ao adicionar este serviço num orçamento, os itens abaixo serão incluídos automaticamente (quantidade do serviço × quantidade por m²/unidade).
           </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <input
-              type="search"
-              value={buscaMaterialVinculo}
-              onChange={(e) => setBuscaMaterialVinculo(e.target.value)}
-              placeholder="Filtrar material..."
-              className="w-56 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
-            />
-            <select
-              value={novoMaterialVinculo.materialId || ""}
-              onChange={(e) =>
-                setNovoMaterialVinculo({
-                  ...novoMaterialVinculo,
-                  materialId: e.target.value ? Number(e.target.value) : ("" as number | ""),
-                })
-              }
-              className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
-            >
-              <option value="">Selecione um material</option>
-              {materiaisFiltradosVinculo.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.nome_material}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={novoMaterialVinculo.quantidade}
-              onChange={(e) => {
-                const v = normalizarDecimal(e.target.value);
-                setNovoMaterialVinculo({ ...novoMaterialVinculo, quantidade: v });
-              }}
-              placeholder="Qtd por unidade de serviço"
-              className="w-40 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
-            />
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
+              <label htmlFor="vinculo-material-novo" className="mb-1 block text-xs font-medium text-[var(--muted)]">
+                Material
+              </label>
+              <AutocompleteCatalogo
+                id="vinculo-material-novo"
+                tipo="material"
+                busca={buscaMaterialVinculo}
+                onBuscaChange={(valor) => {
+                  setBuscaMaterialVinculo(valor);
+                  setNovoMaterialVinculo((prev) => {
+                    if (!valor.trim()) return { ...prev, materialId: "" as number | "" };
+                    const selecionado =
+                      typeof prev.materialId === "number"
+                        ? materiais.find((m) => m.id === prev.materialId)
+                        : null;
+                    if (selecionado && selecionado.nome_material.toLowerCase() === valor.trim().toLowerCase()) {
+                      return prev;
+                    }
+                    return { ...prev, materialId: "" as number | "" };
+                  });
+                }}
+                selecionadoId={typeof novoMaterialVinculo.materialId === "number" ? novoMaterialVinculo.materialId : null}
+                onSelecionarCatalogo={(m) => {
+                  setBuscaMaterialVinculo(m.nome_material);
+                  setNovoMaterialVinculo((prev) => ({ ...prev, materialId: m.id }));
+                }}
+                itens={materiaisDisponiveisVinculo}
+                getItemNome={(m) => m.nome_material}
+                placeholder="Buscar material..."
+                mostrarOpcaoCadastrar={false}
+                compact
+              />
+            </div>
+            <div className="sm:w-44">
+              <label htmlFor="vinculo-qtd-novo" className="mb-1 block text-xs font-medium text-[var(--muted)]">
+                Qtd por unidade de serviço
+              </label>
+              <input
+                id="vinculo-qtd-novo"
+                type="text"
+                inputMode="decimal"
+                value={novoMaterialVinculo.quantidade}
+                onChange={(e) => {
+                  const v = normalizarDecimal(e.target.value);
+                  setNovoMaterialVinculo({ ...novoMaterialVinculo, quantidade: v });
+                }}
+                placeholder="Ex.: 1,5"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+              />
+            </div>
             <button
               type="button"
               onClick={adicionarMaterialVinculo}
               disabled={!novoMaterialVinculo.materialId || !novoMaterialVinculo.quantidade}
-              className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
+              className="w-full rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50 sm:w-auto sm:self-end"
             >
               Vincular
             </button>
@@ -603,49 +619,66 @@ export default function ServicosPage() {
                 <p className="mt-1 text-xs text-[var(--muted)]">
                   Esses materiais serão incluídos automaticamente quando o serviço for adicionado ao orçamento.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <input
-                    type="search"
-                    value={editBuscaMaterialVinculo}
-                    onChange={(e) => setEditBuscaMaterialVinculo(e.target.value)}
-                    placeholder="Filtrar material..."
-                    className="w-52 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                  />
-                  <select
-                    value={editNovoMaterialVinculo.materialId || ""}
-                    onChange={(e) =>
-                      setEditNovoMaterialVinculo({
-                        ...editNovoMaterialVinculo,
-                        materialId: e.target.value ? Number(e.target.value) : ("" as number | ""),
-                      })
-                    }
-                    className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                  >
-                    <option value="">Selecione um material</option>
-                    {materiaisFiltradosVinculoEdicao.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.nome_material}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={editNovoMaterialVinculo.quantidade}
-                    onChange={(e) =>
-                      setEditNovoMaterialVinculo({
-                        ...editNovoMaterialVinculo,
-                        quantidade: normalizarDecimal(e.target.value),
-                      })
-                    }
-                    placeholder="Qtd por unidade"
-                    className="w-36 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                  />
+                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <div className="min-w-0 flex-1">
+                    <label htmlFor="vinculo-material-edicao" className="mb-1 block text-xs font-medium text-[var(--muted)]">
+                      Material
+                    </label>
+                    <AutocompleteCatalogo
+                      id="vinculo-material-edicao"
+                      tipo="material"
+                      busca={editBuscaMaterialVinculo}
+                      onBuscaChange={(valor) => {
+                        setEditBuscaMaterialVinculo(valor);
+                        setEditNovoMaterialVinculo((prev) => {
+                          if (!valor.trim()) return { ...prev, materialId: "" as number | "" };
+                          const selecionado =
+                            typeof prev.materialId === "number"
+                              ? materiais.find((m) => m.id === prev.materialId)
+                              : null;
+                          if (selecionado && selecionado.nome_material.toLowerCase() === valor.trim().toLowerCase()) {
+                            return prev;
+                          }
+                          return { ...prev, materialId: "" as number | "" };
+                        });
+                      }}
+                      selecionadoId={typeof editNovoMaterialVinculo.materialId === "number" ? editNovoMaterialVinculo.materialId : null}
+                      onSelecionarCatalogo={(m) => {
+                        setEditBuscaMaterialVinculo(m.nome_material);
+                        setEditNovoMaterialVinculo((prev) => ({ ...prev, materialId: m.id }));
+                      }}
+                      itens={materiaisDisponiveisVinculoEdicao}
+                      getItemNome={(m) => m.nome_material}
+                      placeholder="Buscar material..."
+                      mostrarOpcaoCadastrar={false}
+                      compact
+                      inputClassName="bg-[var(--surface)]"
+                    />
+                  </div>
+                  <div className="sm:w-40">
+                    <label htmlFor="vinculo-qtd-edicao" className="mb-1 block text-xs font-medium text-[var(--muted)]">
+                      Qtd por unidade
+                    </label>
+                    <input
+                      id="vinculo-qtd-edicao"
+                      type="text"
+                      inputMode="decimal"
+                      value={editNovoMaterialVinculo.quantidade}
+                      onChange={(e) =>
+                        setEditNovoMaterialVinculo({
+                          ...editNovoMaterialVinculo,
+                          quantidade: normalizarDecimal(e.target.value),
+                        })
+                      }
+                      placeholder="Ex.: 1,5"
+                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={adicionarMaterialVinculoEdicao}
                     disabled={!editNovoMaterialVinculo.materialId || !editNovoMaterialVinculo.quantidade}
-                    className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50"
+                    className="w-full rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--on-accent)] hover:opacity-90 disabled:opacity-50 sm:w-auto sm:self-end"
                   >
                     Vincular
                   </button>

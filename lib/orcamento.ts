@@ -58,3 +58,13 @@ export function calcularPorcentagemPaga(valorTotal: number, totalPago: number): 
   if (valorTotal <= 0) return 0;
   return Math.min(100, Math.round((totalPago / valorTotal) * 1000) / 10);
 }
+
+/**
+ * Calcula o valor de uma parcela a partir do saldo restante e da quantidade
+ * de parcelas ainda em aberto. O divisor é sempre no mínimo 1 para evitar
+ * divisão por zero. Resultado arredondado a 2 casas decimais.
+ */
+export function calcularValorParcela(valorRestante: number, parcelasRestantes: number): number {
+  const divisor = Math.max(1, parcelasRestantes);
+  return Math.round((valorRestante / divisor) * 100) / 100;
+}

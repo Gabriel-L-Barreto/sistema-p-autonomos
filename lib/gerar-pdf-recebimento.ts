@@ -25,6 +25,7 @@ export type RecebimentoParaPdf = {
     quantidade: number;
     valorMaoObra: number;
     servico?: { descricao: string; tipo_cobranca?: string } | null;
+    medidaServico?: string | null;
   }[];
 };
 
@@ -72,7 +73,7 @@ function construirLinhasServicos(rec: RecebimentoParaPdf): string[] {
   for (const serv of rec.servicos) {
     const desc = serv.descricaoLivre || serv.servico?.descricao || "Serviço";
     const qtd = serv.quantidade;
-    const un = unidadeParaTexto(serv.servico?.tipo_cobranca);
+    const un = unidadeParaTexto(serv.servico?.tipo_cobranca ?? serv.medidaServico);
     if (un === "un") {
       linhas.push(formatarServicoUnitario(desc, qtd));
     } else {
