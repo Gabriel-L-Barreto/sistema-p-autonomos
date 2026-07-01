@@ -107,8 +107,13 @@ model Orcamento {
   tempoEstimado  Int?
   incluiMaterial Boolean            @default(false)
   totalParcelas  Float?
+  formaPagamentoPadrao TipoPagamento?
   status         Status             @default(CADASTRADO)
   complemento    String?            @db.Text
+
+  clienteNome      String?
+  clienteTelefone  String?
+  clienteAfiliacao String?
 
   ownerAutonomoId Int
   ownerAutonomo   Autonomo           @relation(fields: [ownerAutonomoId], references: [id], onDelete: Restrict)
@@ -142,6 +147,7 @@ model OrcamentoStatusHistorico {
 
 model MaterialOrcamento {
   id                Int       @id @default(autoincrement())
+  materialNome      String?
   medidaMaterial    TipoMedida?
   origemMaterial    String?
   quantidade        Float
@@ -161,6 +167,7 @@ model MaterialOrcamento {
 
 model ServicoOrcamento {
   id            Int       @id @default(autoincrement())
+  servicoDescricao String? @db.Text
   descricaoLivre String?  @db.Text
   medidaServico TipoMedida?
   quantidade    Float

@@ -3,8 +3,13 @@ import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { syncOrcamentosIdSequence } from "@/lib/sync-orcamentos-sequence";
 import { sanitizarHtml, truncarTexto } from "@/lib/sanitize";
-import { calcularValorTotal, calcularTotalPago } from "@/lib/orcamento";
+import { calcularValorTotal, calcularTotalPago, semRecebimentoHaMaisDeDias } from "@/lib/orcamento";
 import { resolveOwnerAutonomoIdForCreate } from "@/lib/resolve-owner-autonomo";
+import {
+  criarOrcamentoCompleto,
+  type MaterialOrcamentoInput,
+  type ServicoOrcamentoInput,
+} from "@/lib/salvar-orcamento-completo";
 
 export async function GET(request: NextRequest) {
   try {
@@ -87,7 +92,6 @@ export async function GET(request: NextRequest) {
 
       const agora = new Date();
       const cincoDiasMs = 5 * 24 * 60 * 60 * 1000;
-      const quinzeDiasMs = 15 * 24 * 60 * 60 * 1000;
       const filtrados = listaFinalizados.filter((o) => {
         const valorTotal = calcularValorTotal(o.materiais, o.servicos, o.incluiMaterial);
         const valorPago = calcularTotalPago(o.pagamentos);
@@ -101,12 +105,16 @@ export async function GET(request: NextRequest) {
 
         if (filtroInicializadosSemRecebimento) {
           const valorRestante = Math.max(0, valorTotal - valorPago);
-          if (valorRestante <= 0) return false;
-          const ultimoRecebimento = o.pagamentos.reduce<Date | null>((acc, pagamento) => {
-            if (!acc) return pagamento.data;
-            return pagamento.data > acc ? pagamento.data : acc;
-          }, null);
-          return Boolean(ultimoRecebimento && agora.getTime() - ultimoRecebimento.getTime() > quinzeDiasMs);
+          return semRecebimentoHaMaisDeDias(
+            {
+              status: o.status,
+              valorRestante,
+              pagamentos: o.pagamentos,
+              historicoStatus: o.historicoStatus,
+            },
+            15,
+            agora
+          );
         }
 
         return true;
@@ -183,8 +191,11 @@ export async function POST(request: NextRequest) {
       tempoEstimado,
       incluiMaterial,
       totalParcelas,
+      formaPagamentoPadrao,
       status,
       complemento,
+      materiais,
+      servicos,
     } = body;
 
     const clienteId =
@@ -205,6 +216,45 @@ export async function POST(request: NextRequest) {
         { error: "Endereço é obrigatório" },
         { status: 400 }
       );
+    }
+
+    const temItensCompletos = Array.isArray(materiais) && Array.isArray(servicos);
+
+    if (temItensCompletos) {
+      const criarCompleto = () =>
+        criarOrcamentoCompleto(
+          prisma,
+          {
+            clienteId,
+            endereco,
+            data,
+            tempoEstimado,
+            incluiMaterial,
+            totalParcelas,
+            formaPagamentoPadrao,
+            status,
+            complemento,
+            materiais: materiais as MaterialOrcamentoInput[],
+            servicos: servicos as ServicoOrcamentoInput[],
+          },
+          ownerAutonomoIdBody
+        );
+
+      let orcamento;
+      try {
+        orcamento = await criarCompleto();
+      } catch (first: unknown) {
+        const conflitoId =
+          first instanceof PrismaClientKnownRequestError &&
+          first.code === "P2002" &&
+          Array.isArray(first.meta?.target) &&
+          first.meta.target.includes("id");
+        if (!conflitoId) throw first;
+        await syncOrcamentosIdSequence(prisma);
+        orcamento = await criarCompleto();
+      }
+
+      return NextResponse.json(orcamento, { status: 201 });
     }
 
     const enderecoLimpo = truncarTexto(endereco.trim());

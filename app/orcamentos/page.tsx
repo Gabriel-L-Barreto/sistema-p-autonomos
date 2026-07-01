@@ -249,7 +249,7 @@ function OrcamentosListaContent() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Listagem de orçamentos</h1>
-            <p className="mt-1 text-sm text-[var(--muted)]">Para registar um recebimento, você deve mudar o status para "Iniciado", "Finalizado" ou "Aceito".</p>
+            <p className="mt-1 text-sm text-[var(--muted)]">Para registrar um recebimento, você deve mudar o status para &quot;Iniciado&quot;, &quot;Finalizado&quot; ou &quot;Aceito&quot;.</p>
           </div>
           <Link
             href="/orcamentos/novo"
@@ -430,7 +430,12 @@ function OrcamentosListaContent() {
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => receberParcelaIgual(orcamento.id, "PIX")}
+                                    onClick={() =>
+                                      receberParcelaIgual(
+                                        orcamento.id,
+                                        orcamento.formaPagamentoPadrao ?? "PIX"
+                                      )
+                                    }
                                     disabled={recebendoParcela === orcamento.id}
                                     className="inline-flex h-9 items-center rounded-lg border border-[var(--success)]/50 px-2 text-xs text-[var(--success)] hover:bg-[var(--success-soft)] disabled:opacity-50"
                                     title="Receber próxima parcela"

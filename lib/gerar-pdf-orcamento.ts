@@ -9,6 +9,7 @@ export type OrcamentoParaPdf = {
   complemento?: string | null;
   cliente: { nome: string; afiliacao: string | null; telefone: string | null };
   materiais: {
+    materialNome?: string | null;
     medidaMaterial: string | null;
     origemMaterial: string | null;
     quantidade: number;
@@ -16,6 +17,7 @@ export type OrcamentoParaPdf = {
     material?: { nome_material: string } | null;
   }[];
   servicos: {
+    servicoDescricao?: string | null;
     descricaoLivre: string | null;
     medidaServico?: string | null;
     quantidade: number;
@@ -91,7 +93,7 @@ function htmlParaTextoPdf(html: string): string {
 function construirLinhasServicos(orc: OrcamentoParaPdf): string[] {
   const linhas: string[] = [];
   for (const serv of orc.servicos) {
-    const desc = serv.descricaoLivre || serv.servico?.descricao || "Serviço";
+    const desc = serv.servicoDescricao || serv.descricaoLivre || serv.servico?.descricao || "Serviço";
     const qtd = serv.quantidade;
     const un = unidadeParaTexto(serv.servico?.tipo_cobranca ?? serv.medidaServico);
     if (un === "un") {
@@ -233,7 +235,7 @@ export function gerarPdf(
       y += 12;
       doc.font("Helvetica");
       for (const mat of grupo) {
-        const desc = mat.material?.nome_material || mat.origemMaterial || "Material";
+        const desc = mat.materialNome || mat.material?.nome_material || mat.origemMaterial || "Material";
         const un = mat.medidaMaterial === "M2" ? "m²" : mat.medidaMaterial === "M3" ? "m³" : mat.medidaMaterial === "METROS" ? "m" : "un";
         const total = mat.quantidade * mat.precoUnitario;
         doc.text(desc, MARGEM_CM, y, { width: colW[0], ellipsis: true });

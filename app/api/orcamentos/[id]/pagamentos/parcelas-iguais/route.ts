@@ -49,10 +49,16 @@ export async function POST(
 
     await prisma.orcamento.update({
       where: { id: idNum },
-      data: { totalParcelas: qtd },
+      data: {
+        totalParcelas: qtd,
+        formaPagamentoPadrao: formaPagamento,
+      },
     });
 
-    return NextResponse.json({ ok: true, totalParcelas: qtd }, { status: 200 });
+    return NextResponse.json(
+      { ok: true, totalParcelas: qtd, formaPagamentoPadrao: formaPagamento },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Erro ao configurar parcelas iguais:", error);
     return NextResponse.json(

@@ -5,6 +5,7 @@ import {
   calcularValorRestante,
   calcularPorcentagemPaga,
   calcularValorParcela,
+  semRecebimentoHaMaisDeDias,
 } from "./orcamento";
 
 describe("calcularValorTotal", () => {
@@ -98,5 +99,41 @@ describe("calcularValorParcela", () => {
     expect(calcularValorParcela(500, 1)).toBe(500);
     expect(calcularValorParcela(500, 0)).toBe(500);
     expect(calcularValorParcela(500, -5)).toBe(500);
+  });
+});
+
+describe("semRecebimentoHaMaisDeDias", () => {
+  const agora = new Date("2026-07-01T12:00:00");
+
+  it("inclui orçamento inicializado sem nenhum pagamento", () => {
+    const dataInicializacao = new Date("2026-06-01T12:00:00");
+    expect(
+      semRecebimentoHaMaisDeDias(
+        {
+          status: "INICIALIZADO",
+          valorRestante: 100,
+          pagamentos: [],
+          historicoStatus: [{ status: "INICIALIZADO", data: dataInicializacao }],
+        },
+        15,
+        agora
+      )
+    ).toBe(true);
+  });
+
+  it("usa o último pagamento quando existir", () => {
+    const ultimoPagamento = new Date("2026-06-20T12:00:00");
+    expect(
+      semRecebimentoHaMaisDeDias(
+        {
+          status: "INICIALIZADO",
+          valorRestante: 50,
+          pagamentos: [{ data: ultimoPagamento }],
+          historicoStatus: [{ status: "INICIALIZADO", data: new Date("2026-01-01") }],
+        },
+        15,
+        agora
+      )
+    ).toBe(false);
   });
 });

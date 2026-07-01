@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  atualizarOrcamentoCompleto,
+  type MaterialOrcamentoInput,
+  type ServicoOrcamentoInput,
+} from "@/lib/salvar-orcamento-completo";
 import { sanitizarHtml, truncarTexto } from "@/lib/sanitize";
 
 export async function GET(
@@ -67,9 +72,39 @@ export async function PUT(
       tempoEstimado,
       incluiMaterial,
       totalParcelas,
+      formaPagamentoPadrao,
       status,
       complemento,
+      materiais,
+      servicos,
     } = body;
+
+    const temItensCompletos = Array.isArray(materiais) && Array.isArray(servicos);
+
+    if (temItensCompletos) {
+      if (!clienteId || !endereco) {
+        return NextResponse.json(
+          { error: "Cliente e endereço são obrigatórios" },
+          { status: 400 }
+        );
+      }
+
+      const orcamento = await atualizarOrcamentoCompleto(prisma, idNum, {
+        clienteId,
+        endereco,
+        data,
+        tempoEstimado,
+        incluiMaterial,
+        totalParcelas,
+        formaPagamentoPadrao,
+        status,
+        complemento,
+        materiais: materiais as MaterialOrcamentoInput[],
+        servicos: servicos as ServicoOrcamentoInput[],
+      });
+
+      return NextResponse.json(orcamento);
+    }
 
     const dataUpdate: Record<string, unknown> = {};
     if (clienteId !== undefined) dataUpdate.clienteId = clienteId;
@@ -78,6 +113,7 @@ export async function PUT(
     if (tempoEstimado !== undefined) dataUpdate.tempoEstimado = tempoEstimado || null;
     if (incluiMaterial !== undefined) dataUpdate.incluiMaterial = incluiMaterial;
     if (totalParcelas !== undefined) dataUpdate.totalParcelas = totalParcelas || null;
+    if (formaPagamentoPadrao !== undefined) dataUpdate.formaPagamentoPadrao = formaPagamentoPadrao || null;
     if (status !== undefined) dataUpdate.status = status;
     if (complemento !== undefined) {
       dataUpdate.complemento = complemento && typeof complemento === "string"
@@ -85,45 +121,49 @@ export async function PUT(
         : null;
     }
 
-    const statusAtual = await prisma.orcamento.findUnique({
-      where: { id: idNum },
-      select: { status: true },
-    });
+    if (clienteId !== undefined) {
+      const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
+      if (cliente) {
+        dataUpdate.clienteNome = cliente.nome;
+        dataUpdate.clienteTelefone = cliente.telefone;
+        dataUpdate.clienteAfiliacao = cliente.afiliacao;
+      }
+    }
 
-    const orcamento = await prisma.orcamento.update({
-      where: { id: idNum },
-      data: dataUpdate,
-      include: {
-        cliente: true,
-        materiais: {
-          include: {
-            material: true,
-          },
-        },
-        servicos: {
-          include: {
-            servico: true,
-          },
-        },
-      },
-    });
+    const orcamento = await prisma.$transaction(async (tx) => {
+      const statusAtual = await tx.orcamento.findUnique({
+        where: { id: idNum },
+        select: { status: true },
+      });
 
-    if (status !== undefined && statusAtual && status !== statusAtual.status) {
-      await prisma.orcamentoStatusHistorico.create({
-        data: {
-          orcamentoId: idNum,
-          status,
+      const atualizado = await tx.orcamento.update({
+        where: { id: idNum },
+        data: dataUpdate,
+        include: {
+          cliente: true,
+          materiais: { include: { material: true } },
+          servicos: { include: { servico: true } },
         },
       });
-    }
+
+      if (status !== undefined && statusAtual && status !== statusAtual.status) {
+        await tx.orcamentoStatusHistorico.create({
+          data: {
+            orcamentoId: idNum,
+            status,
+          },
+        });
+      }
+
+      return atualizado;
+    });
 
     return NextResponse.json(orcamento);
   } catch (error) {
     console.error("Erro ao atualizar orçamento:", error);
-    return NextResponse.json(
-      { error: "Erro ao atualizar orçamento" },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : "Erro ao atualizar orçamento";
+    const status = msg.includes("não encontrado") || msg.includes("Adicione") ? 400 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }
 

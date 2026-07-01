@@ -1,22 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const { findUniqueMock, updateMock, historicoCreateMock } = vi.hoisted(() => ({
+  findUniqueMock: vi.fn(),
+  updateMock: vi.fn(),
+  historicoCreateMock: vi.fn(),
+}));
+
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    orcamento: { findUnique: vi.fn(), update: vi.fn() },
-    orcamentoStatusHistorico: { create: vi.fn() },
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        orcamento: {
+          findUnique: findUniqueMock,
+          update: updateMock,
+        },
+        orcamentoStatusHistorico: { create: historicoCreateMock },
+      })
+    ),
+    orcamento: { findUnique: findUniqueMock, update: updateMock },
+    orcamentoStatusHistorico: { create: historicoCreateMock },
   },
 }));
 
 import { PUT } from "./route";
-import { prisma } from "@/lib/prisma";
 
 type FakeReq = { json: () => Promise<unknown> };
 const makeReq = (body: unknown): FakeReq => ({ json: async () => body });
 const makeCtx = (id: string) => ({ params: Promise.resolve({ id }) });
-
-const updateMock = prisma.orcamento.update as ReturnType<typeof vi.fn>;
-const findUniqueMock = prisma.orcamento.findUnique as ReturnType<typeof vi.fn>;
-const historicoCreateMock = prisma.orcamentoStatusHistorico.create as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();

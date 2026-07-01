@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calcularValorTotal, calcularTotalPago } from "@/lib/orcamento";
+import {
+  calcularValorTotal,
+  calcularTotalPago,
+  semRecebimentoHaMaisDeDias,
+} from "@/lib/orcamento";
 
 function calcularParcelasPadrao(valorTotal: number): number {
   if (valorTotal <= 5000) return 1;
@@ -33,13 +37,7 @@ export async function GET() {
     const inicioProximoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
     const inicioAno = new Date(agora.getFullYear(), 0, 1);
     const inicioProximoAno = new Date(agora.getFullYear() + 1, 0, 1);
-    // Início do período operacional considerado no painel. Orçamentos anteriores
-    // a esta data são apenas EXCLUÍDOS das agregações exibidas (filtro de leitura),
-    // sem qualquer alteração de estado no banco. O dashboard é somente leitura:
-    // uma consulta não deve mutar dados (rastreabilidade e previsibilidade).
-    const inicioPeriodoPainel = new Date(agora.getFullYear(), 3, 1);
     const cincoDiasMs = 5 * 24 * 60 * 60 * 1000;
-    const quinzeDiasMs = 15 * 24 * 60 * 60 * 1000;
 
     let cadastrados = 0;
     let inicializados = 0;
@@ -54,6 +52,7 @@ export async function GET() {
     let valorFinalizados = 0;
     let recebidoNoMes = 0;
     let esperadoNoMes = 0;
+    let esperadoNoMesHeuristica = false;
     let valorTotalAnual = 0;
     let levantamentoRecebimentosMensal = 0;
 
@@ -75,17 +74,17 @@ export async function GET() {
     };
 
     for (const o of lista) {
-      if (o.data < inicioPeriodoPainel) continue;
-
       const valorTotal = calcularValorTotal(o.materiais, o.servicos, o.incluiMaterial);
       const valorPago = calcularTotalPago(o.pagamentos);
       const valorRestante = Math.max(0, valorTotal - valorPago);
       const quitado = valorPago >= valorTotal && valorTotal > 0;
+
       if (o.status === "CADASTRADO") cadastrados += 1;
       if (o.status === "INICIALIZADO") inicializados += 1;
       if (["CADASTRADO", "ACEITO", "INICIALIZADO"].includes(o.status) && valorRestante > 0) {
         orcamentosPendentes += 1;
       }
+
       const statusRelevante = ["ACEITO", "INICIALIZADO", "FINALIZADO"].includes(o.status);
       if (!statusRelevante) continue;
 
@@ -102,14 +101,28 @@ export async function GET() {
         orcamentosPorStatus[statusKey].valor += valorTotal;
       }
 
+      if (quitado) {
+        recebimentosPorStatus.QUITADO.quantidade += 1;
+        recebimentosPorStatus.QUITADO.valor += valorTotal;
+      } else if (valorPago > 0) {
+        recebimentosPorStatus.PARCIAL.quantidade += 1;
+        recebimentosPorStatus.PARCIAL.valor += valorRestante;
+      } else {
+        recebimentosPorStatus.PENDENTE.quantidade += 1;
+        recebimentosPorStatus.PENDENTE.valor += valorTotal;
+      }
+
       totalValorOrcamentos += valorTotal;
       totalValorRecebimentos += valorPago;
       if (o.data >= inicioAno && o.data < inicioProximoAno) valorTotalAnual += valorTotal;
+
       const totalParcelasInformadas = o.totalParcelas && o.totalParcelas > 0 ? Math.round(o.totalParcelas) : null;
+      const usaHeuristica = totalParcelasInformadas === null;
       const totalParcelasEsperadas = totalParcelasInformadas ?? calcularParcelasPadrao(valorTotal);
       const valorParcelaEsperada = totalParcelasEsperadas > 0 ? valorTotal / totalParcelasEsperadas : valorTotal;
       if ((o.status === "INICIALIZADO" || (o.status === "FINALIZADO" && valorRestante > 0)) && valorRestante > 0) {
         esperadoNoMes += Math.min(valorRestante, valorParcelaEsperada);
+        if (usaHeuristica) esperadoNoMesHeuristica = true;
       }
 
       const statusAceitoData = o.historicoStatus.find((h) => h.status === "ACEITO")?.data ?? null;
@@ -117,15 +130,17 @@ export async function GET() {
         aceitosAguardandoInicio += 1;
       }
 
-      const ultimoRecebimento = o.pagamentos.reduce<Date | null>((acc, pagamento) => {
-        if (!acc) return pagamento.data;
-        return pagamento.data > acc ? pagamento.data : acc;
-      }, null);
       if (
-        o.status === "INICIALIZADO" &&
-        valorRestante > 0 &&
-        ultimoRecebimento &&
-        agora.getTime() - ultimoRecebimento.getTime() > quinzeDiasMs
+        semRecebimentoHaMaisDeDias(
+          {
+            status: o.status,
+            valorRestante,
+            pagamentos: o.pagamentos,
+            historicoStatus: o.historicoStatus,
+          },
+          15,
+          agora
+        )
       ) {
         inicializadosSemRecebimento15Dias += 1;
       }
@@ -141,8 +156,6 @@ export async function GET() {
     }
     levantamentoRecebimentosMensal = recebidoNoMes;
 
-    // Gráfico mensal (jan-dez): soma de valores quando o orçamento entra em INICIALIZADO
-    // (ex.: alteração de CADASTRADO -> INICIALIZADO)
     let historicoInicializados: Array<{ orcamentoId: number; data: Date }> = [];
     try {
       historicoInicializados = await prisma.$queryRaw<
@@ -160,7 +173,7 @@ export async function GET() {
 
     for (const item of historicoInicializados) {
       const data = new Date(item.data);
-      const mes = data.getMonth(); // 0-11
+      const mes = data.getMonth();
       const valor = valorTotalPorOrcamento.get(item.orcamentoId) ?? 0;
       valoresMensaisInicializados[mes] += valor;
     }
@@ -176,6 +189,8 @@ export async function GET() {
       valorFinalizados,
       recebidoNoMes,
       esperadoNoMes,
+      esperadoNoMesHeuristica,
+      periodoIndicadores: `Ano ${agora.getFullYear()} (todos os orçamentos)`,
       valorTotalAnual,
       valoresMensaisInicializados,
       recebimentosMensais,

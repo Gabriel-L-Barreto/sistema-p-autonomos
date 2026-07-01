@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import {
-  calcularValorTotal,
-  calcularTotalPago,
-} from "@/lib/orcamento";
-import { formatarPreco } from "@/lib/format";
-
-const FORMAS_PAGAMENTO = ["DINHEIRO", "PIX", "CARTAO"] as const;
+  formaPagamentoValida,
+  registrarPagamentoAbatimento,
+} from "@/lib/registrar-pagamento";
 
 /**
  * POST - Registrar um recebimento (abater parcela).
@@ -34,66 +30,22 @@ export async function POST(
       );
     }
 
-    if (!FORMAS_PAGAMENTO.includes(formaPagamento)) {
+    if (!formaPagamentoValida(formaPagamento)) {
       return NextResponse.json(
         { error: "Forma de pagamento inválida. Use DINHEIRO, PIX ou CARTAO" },
         { status: 400 }
       );
     }
 
-    const orcamento = await prisma.orcamento.findUnique({
-      where: { id: idNum },
-      include: {
-        materiais: true,
-        servicos: true,
-        pagamentos: true,
-      },
-    });
-
-    if (!orcamento) {
-      return NextResponse.json(
-        { error: "Orçamento não encontrado" },
-        { status: 404 }
-      );
-    }
-    if (["CADASTRADO", "NAO_ACEITO"].includes(orcamento.status)) {
-      return NextResponse.json(
-        { error: "Recebimentos só podem ser registrados para orçamentos aceitos, inicializados ou finalizados." },
-        { status: 400 }
-      );
-    }
-
-    const valorTotal = calcularValorTotal(
-      orcamento.materiais,
-      orcamento.servicos,
-      orcamento.incluiMaterial
-    );
-    const totalPago = calcularTotalPago(orcamento.pagamentos);
-    const valorRestante = valorTotal - totalPago;
-
-    if (valorNum > valorRestante) {
-      return NextResponse.json(
-        {
-          error: `Valor não pode exceder o restante do orçamento (${formatarPreco(valorRestante)})`,
-        },
-        { status: 400 }
-      );
-    }
-
-    const pagamento = await prisma.pagamento.create({
-      data: {
-        orcamentoId: idNum,
-        valorRecebido: valorNum,
-        formaPagamento,
-      },
-    });
+    const pagamento = await registrarPagamentoAbatimento(idNum, valorNum, formaPagamento);
 
     return NextResponse.json(pagamento, { status: 201 });
   } catch (error) {
     console.error("Erro ao registrar pagamento:", error);
-    return NextResponse.json(
-      { error: "Erro ao registrar pagamento" },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : "Erro ao registrar pagamento";
+    const status =
+      msg.includes("não encontrado") ? 404 :
+      msg.includes("exceder") || msg.includes("registrados") ? 400 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }

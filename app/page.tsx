@@ -37,6 +37,8 @@ type Stats = {
 
 export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [carregandoStats, setCarregandoStats] = useState(true);
+  const [erroStats, setErroStats] = useState<string | null>(null);
   const [mesRelatorio, setMesRelatorio] = useState<string>("");
   const [ocultarValores, setOcultarValores] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -49,9 +51,19 @@ export default function Home() {
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => data && setStats(data))
-      .catch(() => {});
+      .then((r) => {
+        if (!r.ok) throw new Error("Não foi possível carregar os indicadores do painel.");
+        return r.json();
+      })
+      .then((data) => {
+        setStats(data);
+        setErroStats(null);
+      })
+      .catch((erro) => {
+        setStats(null);
+        setErroStats(erro instanceof Error ? erro.message : "Erro ao carregar indicadores");
+      })
+      .finally(() => setCarregandoStats(false));
   }, []);
 
   const exibirMoeda = (valor: number) => (ocultarValores ? "••••••" : formatarPreco(valor));
@@ -97,6 +109,12 @@ export default function Home() {
           </button>
         </div>
 
+        {erroStats && (
+          <div className="mt-6 rounded-lg border border-[var(--danger)]/50 bg-[var(--danger-soft)] p-4 text-sm text-[var(--danger)]">
+            {erroStats}
+          </div>
+        )}
+
         <section className="mt-8" aria-label="Ação principal">
           <Link
             href="/orcamentos/novo"
@@ -132,6 +150,11 @@ export default function Home() {
 
         <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="text-base font-semibold">Alertas</h2>
+          {carregandoStats ? (
+            <p className="mt-4 text-sm text-[var(--muted)]">Carregando indicadores…</p>
+          ) : erroStats ? (
+            <p className="mt-4 text-sm text-[var(--muted)]">Indicadores indisponíveis.</p>
+          ) : (
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <Link
               href="/orcamentos?status=CADASTRADO"
@@ -188,10 +211,15 @@ export default function Home() {
               </p>
             </Link>
           </div>
+          )}
         </section>
 
         <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="text-base font-semibold">Indicadores</h2>
+          {carregandoStats ? (
+            <p className="mt-4 text-sm text-[var(--muted)]">Carregando indicadores…</p>
+          ) : erroStats ? null : (
+          <>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
               <p className="text-xs text-[var(--muted)]">Aceitos</p>
@@ -211,6 +239,11 @@ export default function Home() {
             <p className="text-sm font-semibold">Gráfico financeiro</p>
             <p className="text-xs text-[var(--muted)]">
               Recebido no mês, esperado para o mês e valor total anual.
+              {(stats as { esperadoNoMesHeuristica?: boolean } | null)?.esperadoNoMesHeuristica && (
+                <span className="block mt-1 text-[var(--warning)]">
+                  O valor esperado no mês inclui estimativa heurística para orçamentos sem parcelas configuradas.
+                </span>
+              )}
             </p>
             <div className="mt-4 space-y-3">
               {[
@@ -268,6 +301,8 @@ export default function Home() {
               })}
             </div>
           </div>
+          </>
+          )}
         </section>
 
         <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">

@@ -1,9 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const { findUniqueMock, createMock, executeRawMock } = vi.hoisted(() => ({
+  findUniqueMock: vi.fn(),
+  createMock: vi.fn(),
+  executeRawMock: vi.fn(),
+}));
+
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    orcamento: { findUnique: vi.fn() },
-    pagamento: { create: vi.fn() },
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        $executeRaw: executeRawMock,
+        orcamento: { findUnique: findUniqueMock },
+        pagamento: { create: createMock },
+      })
+    ),
+    orcamento: { findUnique: findUniqueMock },
+    pagamento: { create: createMock },
   },
 }));
 
@@ -14,7 +27,6 @@ type FakeReq = { json: () => Promise<unknown> };
 const makeReq = (body: unknown): FakeReq => ({ json: async () => body });
 const makeCtx = (id: string) => ({ params: Promise.resolve({ id }) });
 
-// Orçamento base: total = 1000 (serviço), pago = 600 -> saldo restante = 400
 const orcamentoBase = {
   id: 1,
   status: "ACEITO",
@@ -30,7 +42,7 @@ beforeEach(() => {
 
 describe("POST /api/orcamentos/[id]/pagamentos", () => {
   it("rejeita recebimento acima do saldo restante (400)", async () => {
-    (prisma.orcamento.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(orcamentoBase);
+    findUniqueMock.mockResolvedValue(orcamentoBase);
 
     const res = await POST(
       makeReq({ valorRecebido: 500, formaPagamento: "PIX" }) as never,
@@ -44,8 +56,8 @@ describe("POST /api/orcamentos/[id]/pagamentos", () => {
   });
 
   it("aceita recebimento igual ou abaixo do saldo (201)", async () => {
-    (prisma.orcamento.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(orcamentoBase);
-    (prisma.pagamento.create as ReturnType<typeof vi.fn>).mockResolvedValue({
+    findUniqueMock.mockResolvedValue(orcamentoBase);
+    createMock.mockResolvedValue({
       id: 10,
       orcamentoId: 1,
       valorRecebido: 400,
@@ -62,7 +74,7 @@ describe("POST /api/orcamentos/[id]/pagamentos", () => {
   });
 
   it("rejeita recebimento para orçamento ainda não aceito (400)", async () => {
-    (prisma.orcamento.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+    findUniqueMock.mockResolvedValue({
       ...orcamentoBase,
       status: "CADASTRADO",
     });

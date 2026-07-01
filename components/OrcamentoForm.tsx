@@ -192,9 +192,9 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
       setError("Digite ou selecione um material.");
       return;
     }
-    const quantidadeNum = parseInt(novoMaterial.quantidade, 10);
-    if (Number.isNaN(quantidadeNum) || quantidadeNum <= 0 || !Number.isInteger(quantidadeNum)) {
-      setError("Quantidade deve ser um número inteiro positivo");
+    const quantidadeNum = parseFloat(String(novoMaterial.quantidade).replace(",", "."));
+    if (Number.isNaN(quantidadeNum) || quantidadeNum <= 0) {
+      setError("Quantidade deve ser um número positivo");
       return;
     }
     const quantidade = quantidadeNum;
@@ -521,85 +521,34 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
     }
     setSaving(true);
     try {
-      let orcamentoId: number;
+      const payload = {
+        clienteId: Number(clienteId),
+        endereco: endereco.trim(),
+        data,
+        tempoEstimado: tempoEstimado || null,
+        incluiMaterial,
+        totalParcelas: isEdit ? (initialData?.totalParcelas ?? null) : null,
+        status,
+        complemento: complemento.trim() || null,
+        materiais: materiaisOrcamento,
+        servicos: servicosOrcamento,
+      };
 
-      if (isEdit && initialData) {
-        const resposta = await fetch(`/api/orcamentos/${initialData.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clienteId: Number(clienteId),
-            endereco: endereco.trim(),
-            data,
-            tempoEstimado: tempoEstimado || null,
-            incluiMaterial,
-            totalParcelas: initialData?.totalParcelas ?? null,
-            status,
-            complemento: complemento.trim() || null,
-          }),
-        });
-        if (!resposta.ok) {
-          const dados = await resposta.json().catch(() => ({}));
-          throw new Error(dados.error || "Falha ao atualizar");
-        }
-        const { id: idOrcamento, materiais: mats, servicos: servs } =
-          await resposta.json();
-        orcamentoId = idOrcamento;
-        for (const mat of mats) {
-          await fetch(`/api/orcamentos/${orcamentoId}/materiais/${mat.id}`, {
-            method: "DELETE",
-          });
-        }
-        for (const serv of servs) {
-          await fetch(`/api/orcamentos/${orcamentoId}/servicos/${serv.id}`, {
-            method: "DELETE",
-          });
-        }
-      } else {
-        const resposta = await fetch("/api/orcamentos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clienteId: Number(clienteId),
-            endereco: endereco.trim(),
-            data,
-            tempoEstimado: tempoEstimado || null,
-            incluiMaterial,
-            totalParcelas: null,
-            status,
-            complemento: complemento.trim() || null,
-          }),
-        });
-        if (!resposta.ok) {
-          const dados = await resposta.json().catch(() => ({}));
-          throw new Error(dados.error || "Falha ao criar");
-        }
-        const orc = await resposta.json();
-        orcamentoId = orc.id;
+      const url = isEdit && initialData ? `/api/orcamentos/${initialData.id}` : "/api/orcamentos";
+      const method = isEdit ? "PUT" : "POST";
+      const resposta = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => ({}));
+        throw new Error(dados.error || "Falha ao salvar orçamento");
       }
 
-      for (const mat of materiaisOrcamento) {
-        const resposta = await fetch(`/api/orcamentos/${orcamentoId}/materiais`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(mat),
-        });
-        if (!resposta.ok) {
-          const dados = await resposta.json().catch(() => ({}));
-          throw new Error(dados.error || "Falha ao adicionar material no orçamento");
-        }
-      }
-      for (const serv of servicosOrcamento) {
-        const resposta = await fetch(`/api/orcamentos/${orcamentoId}/servicos`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(serv),
-        });
-        if (!resposta.ok) {
-          const dados = await resposta.json().catch(() => ({}));
-          throw new Error(dados.error || "Falha ao adicionar serviço no orçamento");
-        }
-      }
+      const orc = await resposta.json();
+      const orcamentoId = orc.id as number;
 
       if (!isEdit) {
         window.open(`/api/orcamentos/${orcamentoId}/pdf`, "_blank", "noopener,noreferrer");
@@ -1136,10 +1085,10 @@ export function OrcamentoForm({ initialData, onSuccess, onCancel }: Props) {
                 <input
                   id="material-qtd"
                   type="text"
-                  inputMode="numeric"
+                  inputMode="decimal"
                   value={novoMaterial.quantidade}
                   onChange={(e) => {
-                    const v = e.target.value.replace(/[^0-9]/g, "");
+                    const v = formatarDecimalEntrada(e.target.value);
                     setNovoMaterial({ ...novoMaterial, quantidade: v });
                   }}
                   className={inputBase}

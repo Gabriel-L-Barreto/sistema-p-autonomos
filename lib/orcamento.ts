@@ -68,3 +68,35 @@ export function calcularValorParcela(valorRestante: number, parcelasRestantes: n
   const divisor = Math.max(1, parcelasRestantes);
   return Math.round((valorRestante / divisor) * 100) / 100;
 }
+
+type HistoricoStatus = { status: string; data: Date };
+type PagamentoComData = { data: Date };
+
+/**
+ * Verifica se um orçamento inicializado com saldo em aberto está sem recebimento há mais de N dias.
+ * Usa a data do último pagamento ou, se não houver pagamentos, a data de inicialização no histórico.
+ */
+export function semRecebimentoHaMaisDeDias(
+  params: {
+    status: string;
+    valorRestante: number;
+    pagamentos: PagamentoComData[];
+    historicoStatus: HistoricoStatus[];
+  },
+  dias: number,
+  agora: Date = new Date()
+): boolean {
+  if (params.status !== "INICIALIZADO" || params.valorRestante <= 0) return false;
+
+  const limiteMs = dias * 24 * 60 * 60 * 1000;
+  const ultimoRecebimento = params.pagamentos.reduce<Date | null>((acc, pagamento) => {
+    if (!acc) return pagamento.data;
+    return pagamento.data > acc ? pagamento.data : acc;
+  }, null);
+
+  const dataInicializacao =
+    params.historicoStatus.find((h) => h.status === "INICIALIZADO")?.data ?? null;
+
+  const referencia = ultimoRecebimento ?? dataInicializacao;
+  return Boolean(referencia && agora.getTime() - referencia.getTime() > limiteMs);
+}

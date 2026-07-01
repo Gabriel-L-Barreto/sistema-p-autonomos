@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import {
-  calcularValorTotal,
-  calcularTotalPago,
-  calcularValorParcela,
-} from "@/lib/orcamento";
-
-const FORMAS_PAGAMENTO = ["DINHEIRO", "PIX", "CARTAO"] as const;
+  formaPagamentoValida,
+  registrarParcelaIgual,
+} from "@/lib/registrar-pagamento";
 
 /**
  * POST - Registrar a próxima parcela (para orçamentos com parcelas iguais).
- * Cria um Pagamento com valor = total / totalParcelas.
- * Retorna o pagamento criado para gerar o PDF.
  */
 export async function POST(
   request: NextRequest,
@@ -27,89 +21,22 @@ export async function POST(
     const body = await request.json();
     const { formaPagamento } = body;
 
-    if (!FORMAS_PAGAMENTO.includes(formaPagamento)) {
+    if (!formaPagamentoValida(formaPagamento)) {
       return NextResponse.json(
         { error: "Forma de pagamento inválida. Use DINHEIRO, PIX ou CARTAO" },
         { status: 400 }
       );
     }
 
-    const orcamento = await prisma.orcamento.findUnique({
-      where: { id: idNum },
-      include: {
-        materiais: true,
-        servicos: true,
-        pagamentos: { orderBy: { id: "asc" } },
-      },
-    });
+    const pagamento = await registrarParcelaIgual(idNum, formaPagamento);
 
-    if (!orcamento) {
-      return NextResponse.json(
-        { error: "Orçamento não encontrado" },
-        { status: 404 }
-      );
-    }
-    if (["CADASTRADO", "NAO_ACEITO"].includes(orcamento.status)) {
-      return NextResponse.json(
-        { error: "Recebimentos só podem ser registrados para orçamentos aceitos, inicializados ou finalizados." },
-        { status: 400 }
-      );
-    }
-
-    const totalParcelas = orcamento.totalParcelas;
-    if (totalParcelas == null || totalParcelas < 1) {
-      return NextResponse.json(
-        { error: "Orçamento não possui parcelas iguais configuradas" },
-        { status: 400 }
-      );
-    }
-
-    const qtd = Math.round(totalParcelas);
-    const pagamentosExistentes = orcamento.pagamentos.length;
-
-    const valorTotal = calcularValorTotal(
-      orcamento.materiais,
-      orcamento.servicos,
-      orcamento.incluiMaterial
-    );
-    const totalPago = calcularTotalPago(orcamento.pagamentos);
-    const valorRestante = valorTotal - totalPago;
-
-    if (valorRestante <= 0) {
-      return NextResponse.json(
-        { error: "Não há valor restante para receber" },
-        { status: 400 }
-      );
-    }
-
-    const parcelasRestantes = Math.max(1, qtd - pagamentosExistentes);
-    const valorParcela = calcularValorParcela(valorRestante, parcelasRestantes);
-
-    const novaQtdParcelas = Math.max(qtd, pagamentosExistentes + 1);
-
-    const [pagamento] = await prisma.$transaction([
-      prisma.pagamento.create({
-        data: {
-          orcamentoId: idNum,
-          valorRecebido: valorParcela,
-          formaPagamento,
-        },
-      }),
-      prisma.orcamento.update({
-        where: { id: idNum },
-        data: { totalParcelas: novaQtdParcelas },
-      }),
-    ]);
-
-    return NextResponse.json(
-      { ...pagamento, parcela: { numero: pagamentosExistentes + 1, total: novaQtdParcelas } },
-      { status: 201 }
-    );
+    return NextResponse.json(pagamento, { status: 201 });
   } catch (error) {
     console.error("Erro ao registrar parcela:", error);
-    return NextResponse.json(
-      { error: "Erro ao registrar parcela" },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : "Erro ao registrar parcela";
+    const status =
+      msg.includes("não encontrado") ? 404 :
+      msg.includes("parcelas") || msg.includes("restante") || msg.includes("registrados") ? 400 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }

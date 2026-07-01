@@ -87,6 +87,7 @@ export type OrcamentoLista = {
   tempoEstimado: number | null;
   incluiMaterial: boolean;
   totalParcelas: number | null;
+  formaPagamentoPadrao?: "DINHEIRO" | "PIX" | "CARTAO" | null;
   status: string;
   materiais: { id: number; quantidade: number; precoUnitario: number }[];
   servicos: { id: number; quantidade: number; valorMaoObra: number }[];

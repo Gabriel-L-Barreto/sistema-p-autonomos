@@ -40,19 +40,21 @@ export async function GET(
       incluiMaterial: orcamento.incluiMaterial,
       complemento: orcamento.complemento,
       cliente: {
-        nome: orcamento.cliente.nome,
-        afiliacao: orcamento.cliente.afiliacao,
-        telefone: orcamento.cliente.telefone,
+        nome: orcamento.clienteNome ?? orcamento.cliente.nome,
+        afiliacao: orcamento.clienteAfiliacao ?? orcamento.cliente.afiliacao,
+        telefone: orcamento.clienteTelefone ?? orcamento.cliente.telefone,
       },
       materiais: orcamento.materiais.map((m) => ({
         medidaMaterial: m.medidaMaterial != null ? String(m.medidaMaterial) : null,
         origemMaterial: m.origemMaterial,
         quantidade: m.quantidade,
         precoUnitario: m.precoUnitario,
+        materialNome: m.materialNome,
         material: m.material ? { nome_material: m.material.nome_material } : null,
       })),
       servicos: orcamento.servicos.map((s) => ({
         descricaoLivre: s.descricaoLivre,
+        servicoDescricao: s.servicoDescricao,
         medidaServico: s.medidaServico != null ? String(s.medidaServico) : null,
         quantidade: s.quantidade,
         valorMaoObra: s.valorMaoObra,
@@ -84,7 +86,7 @@ export async function GET(
     });
 
     const pdfBuffer = Buffer.concat(chunks);
-    const nomeArquivo = `Orcamento ${String(orcamento.id).padStart(3, "0")} - ${orcamento.cliente.nome}.pdf`;
+    const nomeArquivo = `Orcamento ${String(orcamento.id).padStart(3, "0")} - ${orcamento.clienteNome ?? orcamento.cliente.nome}.pdf`;
 
     return new NextResponse(pdfBuffer, {
       status: 200,
