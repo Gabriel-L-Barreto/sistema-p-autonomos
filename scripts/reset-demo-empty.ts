@@ -25,7 +25,7 @@ async function main() {
   await prisma.empresaConfig.create({
     data: {
       cabecalho: "Sistema de Orçamentos (demo)\nContatos: / Email:\nEndereço",
-      cabecalhoCor: "#5b4b8a",
+      cabecalhoCor: "#5b42f3",
       cabecalhoLocal: "meio",
       rodape: "Ambiente de demonstração do portfólio.",
       rodapeLocal: "meio",

@@ -16,7 +16,7 @@ const DEFAULT_CONFIG = {
   timbradoUrl: null as string | null,
   timbradoRecebimentoUrl: null as string | null,
   pixQrCodeUrl: null as string | null,
-  cabecalhoCor: "#5b4b8a",
+  cabecalhoCor: "#5b42f3",
   nomeAssinatura: "Demo",
   cidadeEmissao: "",
 };

@@ -208,7 +208,7 @@ export default function Home() {
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <Link
               href="/orcamentos?status=CADASTRADO"
-              className="rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-soft)] p-3 transition hover:opacity-90"
+              className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3 transition hover:border-[var(--accent)]/40"
             >
               <p className="text-sm font-medium">Sem definição final</p>
               <p className="text-sm text-[var(--muted)]">
@@ -217,18 +217,18 @@ export default function Home() {
             </Link>
             <Link
               href="/orcamentos?alerta=ACEITOS_SEM_INICIO_5_DIAS"
-              className="rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-soft)] p-3 transition hover:opacity-90"
+              className="rounded-lg border border-[var(--warning)]/35 bg-[var(--warning-soft)] p-3 transition hover:opacity-90"
             >
-              <p className="text-sm font-medium">Aceitos aguardando início</p>
+              <p className="text-sm font-medium text-[var(--warning)]">Aceitos aguardando início</p>
               <p className="text-sm text-[var(--muted)]">
                 {stats?.aceitosAguardandoInicio ?? 0} orçamento(s) aceitos há mais de 5 dias.
               </p>
             </Link>
             <Link
               href="/orcamentos?status=FINALIZADO&alerta=FINALIZADOS_NAO_QUITADOS"
-              className="rounded-lg border border-[var(--danger)]/40 bg-[var(--danger-soft)] p-3 transition hover:opacity-90"
+              className="rounded-lg border border-[var(--danger)]/35 bg-[var(--danger-soft)] p-3 transition hover:opacity-90"
             >
-              <p className="text-sm font-medium">Finalizados não quitados</p>
+              <p className="text-sm font-medium text-[var(--danger)]">Finalizados não quitados</p>
               <p className="text-sm text-[var(--muted)]">
                 {stats?.finalizadosNaoQuitados ?? 0} orçamento(s) finalizados com pendência.
               </p>
@@ -237,7 +237,7 @@ export default function Home() {
               href="/orcamentos?status=INICIALIZADO"
               className="rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-soft)] p-3 transition hover:opacity-90"
             >
-              <p className="text-sm font-medium">Em andamento</p>
+              <p className="text-sm font-medium text-[var(--accent)]">Em andamento</p>
               <p className="text-sm text-[var(--muted)]">
                 {stats?.inicializados ?? 0} orçamento(s) inicializados.
               </p>
@@ -246,14 +246,14 @@ export default function Home() {
               href="/orcamentos?alerta=INICIALIZADOS_SEM_RECEBIMENTO_15_DIAS"
               className="rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-soft)] p-3 transition hover:opacity-90"
             >
-              <p className="text-sm font-medium">Sem recebimento recente</p>
+              <p className="text-sm font-medium text-[var(--accent)]">Sem recebimento recente</p>
               <p className="text-sm text-[var(--muted)]">
                 {stats?.inicializadosSemRecebimento15Dias ?? 0} orçamento(s) inicializados sem recebimento há mais de 15 dias.
               </p>
             </Link>
             <Link
               href="/orcamentos?alerta=PENDENTES_RECEBIMENTO"
-              className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3 transition hover:opacity-90"
+              className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3 transition hover:border-[var(--accent)]/40"
             >
               <p className="text-sm font-medium">Pendentes de recebimento</p>
               <p className="text-sm text-[var(--muted)]">

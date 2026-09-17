@@ -1,42 +1,42 @@
 @import "tailwindcss";
 
 :root {
-  /* Paleta roxo/lavanda — accent mantém #5b42f3 */
-  --palette-deep: #110638;
-  --palette-purple: #6123A1;
-  --palette-magenta: #9D21B4;
-  --palette-lavender: #6D7AF1;
-  --palette-lavender-soft: #98ABF5;
-  --palette-bg-soft: #FDF1F7;
+  /* Paleta fria e unificada: slate + indigo (sem creme/rosa) */
+  --palette-deep: #16132a;
+  --palette-mid: #3f3a5c;
+  --palette-accent: #5b42f3;
+  --palette-accent-dark: #4733d4;
 
-  --background: color-mix(in srgb, var(--palette-bg-soft) 88%, Canvas 12%);
-  --foreground: color-mix(in srgb, var(--palette-deep) 92%, CanvasText 8%);
-  --surface: color-mix(in srgb, #ffffff 92%, var(--palette-lavender-soft) 8%);
-  --surface-elevated: color-mix(in srgb, #ffffff 86%, var(--palette-lavender) 14%);
-  --border: color-mix(in srgb, var(--palette-lavender-soft) 42%, CanvasText 18%);
+  --background: #f3f4f8;
+  --foreground: #16132a;
+  --surface: #ffffff;
+  --surface-elevated: #eef0f6;
+  --border: #d9dce8;
   --accent: #5b42f3;
-  --accent-2: #6123A1;
-  --accent-soft: color-mix(in srgb, var(--palette-lavender-soft) 55%, transparent);
-  --success: #15803d;
-  --success-soft: rgba(21, 128, 61, 0.1);
-  --warning: #b45309;
-  --warning-soft: rgba(180, 83, 9, 0.12);
-  --danger: #b91c1c;
-  --danger-soft: rgba(185, 28, 28, 0.12);
-  --muted: color-mix(in srgb, var(--palette-deep) 55%, Canvas 45%);
+  --accent-2: #4733d4;
+  --accent-soft: rgba(91, 66, 243, 0.12);
+  --success: #0f766e;
+  --success-soft: rgba(15, 118, 110, 0.12);
+  --warning: #5b4bb5;
+  --warning-soft: rgba(91, 75, 181, 0.12);
+  --danger: #b42318;
+  --danger-soft: rgba(180, 35, 24, 0.1);
+  --muted: #5c6178;
   --on-accent: #ffffff;
-  --status-cadastrado-bg: color-mix(in srgb, var(--palette-deep) 10%, #ffffff 90%);
-  --status-cadastrado-fg: color-mix(in srgb, var(--palette-deep) 78%, Canvas 22%);
-  --status-nao-aceito-bg: rgba(185, 28, 28, 0.14);
-  --status-nao-aceito-fg: var(--danger);
-  --status-aceito-bg: rgba(21, 128, 61, 0.14);
-  --status-aceito-fg: var(--success);
-  --status-inicializado-bg: rgba(180, 83, 9, 0.16);
-  --status-inicializado-fg: var(--warning);
-  --status-finalizado-bg: color-mix(in srgb, var(--accent) 16%, transparent);
-  --status-finalizado-fg: var(--accent);
-  --overlay: color-mix(in srgb, var(--palette-deep) 60%, transparent);
-  --overlay-soft: color-mix(in srgb, var(--palette-deep) 40%, transparent);
+
+  --status-cadastrado-bg: rgba(92, 97, 120, 0.1);
+  --status-cadastrado-fg: #3f3a5c;
+  --status-nao-aceito-bg: rgba(180, 35, 24, 0.1);
+  --status-nao-aceito-fg: #912018;
+  --status-aceito-bg: rgba(15, 118, 110, 0.12);
+  --status-aceito-fg: #0f766e;
+  --status-inicializado-bg: rgba(91, 66, 243, 0.12);
+  --status-inicializado-fg: #4733d4;
+  --status-finalizado-bg: rgba(91, 66, 243, 0.18);
+  --status-finalizado-fg: #5b42f3;
+
+  --overlay: rgba(22, 19, 42, 0.55);
+  --overlay-soft: rgba(22, 19, 42, 0.35);
 }
 
 * {

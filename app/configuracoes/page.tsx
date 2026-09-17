@@ -30,7 +30,7 @@ export default function ConfiguracoesPage() {
 
   const [cabecalho, setCabecalho] = useState("");
   const [rodape, setRodape] = useState("");
-  const [cabecalhoCor, setCabecalhoCor] = useState("#1f2b6b");
+  const [cabecalhoCor, setCabecalhoCor] = useState("#5b42f3");
   const [cabecalhoLocal, setCabecalhoLocal] = useState<"inicio" | "meio" | "fim">("meio");
   const [rodapeLocal, setRodapeLocal] = useState<"inicio" | "meio" | "fim">("meio");
   const [logoUrl, setLogoUrl] = useState("");
@@ -55,7 +55,7 @@ export default function ConfiguracoesPage() {
         setTimbradoUrl(data.timbradoUrl ?? "");
         setTimbradoRecebimentoUrl(data.timbradoRecebimentoUrl ?? "");
         setPixQrCodeUrl(data.pixQrCodeUrl ?? "");
-        setCabecalhoCor(data.cabecalhoCor ?? "#1f2b6b");
+        setCabecalhoCor(data.cabecalhoCor ?? "#5b42f3");
         setCabecalhoLocal(["inicio", "meio", "fim"].includes(data.cabecalhoLocal ?? "") ? (data.cabecalhoLocal as "inicio" | "meio" | "fim") : "meio");
         setRodapeLocal(["inicio", "meio", "fim"].includes(data.rodapeLocal ?? "") ? (data.rodapeLocal as "inicio" | "meio" | "fim") : "meio");
         setNomeAssinatura(data.nomeAssinatura ?? "");
