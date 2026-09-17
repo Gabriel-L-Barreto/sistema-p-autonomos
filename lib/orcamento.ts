@@ -1,0 +1,123 @@
+/**
+ * Funções compartilhadas para cálculos de orçamento e pagamentos.
+ * Usadas em API routes, componentes e libs para evitar duplicação.
+ */
+
+export type ItemMaterial = {
+  quantidade: number;
+  precoUnitario: number;
+};
+
+export type ItemServico = {
+  quantidade: number;
+  valorMaoObra: number;
+};
+
+export type ItemPagamento = {
+  valorRecebido: number;
+};
+
+/** Compatível com o módulo Controle (campos de diária/desconto ainda não existem neste clone). */
+export type OpcoesCalculoOrcamento = {
+  tipoOrcamento?: "SERVICOS" | "DIARIA";
+  valorDiaria?: number | null;
+  diasTrabalhados?: number | null;
+  descontoValor?: number | null;
+  descontoPercentual?: number | null;
+};
+
+export function opcoesCalculoDoOrcamento(_orc?: {
+  tipoOrcamento?: string | null;
+  valorDiaria?: number | null;
+  diasTrabalhados?: number | null;
+  descontoValor?: number | null;
+  descontoPercentual?: number | null;
+}): OpcoesCalculoOrcamento {
+  return { tipoOrcamento: "SERVICOS" };
+}
+
+/**
+ * Calcula o valor total do orçamento (materiais + serviços).
+ * @param materiais - Lista de materiais (considerados apenas se incluiMaterial)
+ * @param servicos - Lista de serviços
+ * @param incluiMaterial - Se true, soma materiais; se false, ignora
+ * @param _opts - Reservado para diária/desconto (ignorado neste clone)
+ */
+export function calcularValorTotal(
+  materiais: ItemMaterial[],
+  servicos: ItemServico[],
+  incluiMaterial: boolean,
+  _opts?: OpcoesCalculoOrcamento
+): number {
+  const totalMateriais = incluiMaterial
+    ? materiais.reduce((s, m) => s + m.quantidade * m.precoUnitario, 0)
+    : 0;
+  const totalServicos = servicos.reduce((s, srv) => s + srv.quantidade * srv.valorMaoObra, 0);
+  return Math.round((totalMateriais + totalServicos) * 100) / 100;
+}
+
+/**
+ * Calcula o total já pago a partir dos pagamentos.
+ */
+export function calcularTotalPago(pagamentos: ItemPagamento[]): number {
+  return Math.round(
+    pagamentos.reduce((s, p) => s + p.valorRecebido, 0) * 100
+  ) / 100;
+}
+
+/**
+ * Calcula o valor restante a pagar.
+ */
+export function calcularValorRestante(valorTotal: number, totalPago: number): number {
+  return Math.max(0, Math.round((valorTotal - totalPago) * 100) / 100);
+}
+
+/**
+ * Calcula a porcentagem paga (0 a 100).
+ */
+export function calcularPorcentagemPaga(valorTotal: number, totalPago: number): number {
+  if (valorTotal <= 0) return 0;
+  return Math.min(100, Math.round((totalPago / valorTotal) * 1000) / 10);
+}
+
+/**
+ * Calcula o valor de uma parcela a partir do saldo restante e da quantidade
+ * de parcelas ainda em aberto. O divisor é sempre no mínimo 1 para evitar
+ * divisão por zero. Resultado arredondado a 2 casas decimais.
+ */
+export function calcularValorParcela(valorRestante: number, parcelasRestantes: number): number {
+  const divisor = Math.max(1, parcelasRestantes);
+  return Math.round((valorRestante / divisor) * 100) / 100;
+}
+
+type HistoricoStatus = { status: string; data: Date };
+type PagamentoComData = { data: Date };
+
+/**
+ * Verifica se um orçamento inicializado com saldo em aberto está sem recebimento há mais de N dias.
+ * Usa a data do último pagamento ou, se não houver pagamentos, a data de inicialização no histórico.
+ */
+export function semRecebimentoHaMaisDeDias(
+  params: {
+    status: string;
+    valorRestante: number;
+    pagamentos: PagamentoComData[];
+    historicoStatus: HistoricoStatus[];
+  },
+  dias: number,
+  agora: Date = new Date()
+): boolean {
+  if (params.status !== "INICIALIZADO" || params.valorRestante <= 0) return false;
+
+  const limiteMs = dias * 24 * 60 * 60 * 1000;
+  const ultimoRecebimento = params.pagamentos.reduce<Date | null>((acc, pagamento) => {
+    if (!acc) return pagamento.data;
+    return pagamento.data > acc ? pagamento.data : acc;
+  }, null);
+
+  const dataInicializacao =
+    params.historicoStatus.find((h) => h.status === "INICIALIZADO")?.data ?? null;
+
+  const referencia = ultimoRecebimento ?? dataInicializacao;
+  return Boolean(referencia && agora.getTime() - referencia.getTime() > limiteMs);
+}

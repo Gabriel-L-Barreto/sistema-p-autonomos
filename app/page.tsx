@@ -1,0 +1,471 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { LayoutHeader } from "@/components/LayoutHeader";
+import {
+  IconUsers,
+  IconFileText,
+  IconCatalog,
+  IconChevronRight,
+  IconSettings,
+  IconEye,
+  IconChart,
+} from "@/components/Icons";
+import { formatarPreco } from "@/lib/format";
+
+type Stats = {
+  totalOrcamentos: number;
+  totalRecebimentos: number;
+  totalValorOrcamentos: number;
+  totalValorRecebimentos: number;
+  valorAceitos: number;
+  valorInicializados: number;
+  valorFinalizados: number;
+  recebidoNoMes: number;
+  esperadoNoMes: number;
+  valorTotalAnual: number;
+  valoresMensaisInicializados: number[];
+  recebimentosMensais: number[];
+  levantamentoRecebimentosMensal: number;
+  cadastrados: number;
+  inicializados: number;
+  orcamentosPendentes: number;
+  finalizadosNaoQuitados: number;
+  aceitosAguardandoInicio: number;
+  inicializadosSemRecebimento15Dias: number;
+};
+
+type AlertaControle = {
+  id: number;
+  cliente: string;
+  mensagem: string;
+  diasPendentes: number;
+  tipo: "SEM_DATA_INICIO" | "DIAS_PENDENTES";
+};
+
+export default function Home() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [carregandoStats, setCarregandoStats] = useState(true);
+  const [erroStats, setErroStats] = useState<string | null>(null);
+  const [alertasControle, setAlertasControle] = useState<AlertaControle[]>([]);
+  const [mesRelatorio, setMesRelatorio] = useState<string>("");
+  const [ocultarValores, setOcultarValores] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem("home_ocultar_valores") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    fetch("/api/dashboard")
+      .then((r) => {
+        if (!r.ok) throw new Error("Não foi possível carregar os indicadores do painel.");
+        return r.json();
+      })
+      .then((data) => {
+        setStats(data);
+        setErroStats(null);
+      })
+      .catch((erro) => {
+        setStats(null);
+        setErroStats(erro instanceof Error ? erro.message : "Erro ao carregar indicadores");
+      })
+      .finally(() => setCarregandoStats(false));
+
+    fetch("/api/controle/alertas")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.alertas) setAlertasControle(data.alertas);
+      })
+      .catch(() => {});
+  }, []);
+
+  const exibirMoeda = (valor: number) => (ocultarValores ? "••••••" : formatarPreco(valor));
+
+  const graficoMaximo = Math.max(
+    1,
+    stats?.recebidoNoMes ?? 0,
+    stats?.esperadoNoMes ?? 0,
+    stats?.valorTotalAnual ?? 0
+  );
+  const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const mesesLongos = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  const anoAtual = new Date().getFullYear();
+  const maxMensalInicializado = Math.max(1, ...(stats?.valoresMensaisInicializados ?? [0]));
+
+  return (
+    <div className="min-h-screen text-[var(--foreground)]">
+      <LayoutHeader paginaAtiva="inicio" />
+
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">Bem-vindo(a)</h1>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Sistema de gerenciamento de orçamentos e recebimentos
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const novo = !ocultarValores;
+              setOcultarValores(novo);
+              try {
+                localStorage.setItem("home_ocultar_valores", novo ? "1" : "0");
+              } catch {
+                // fallback silencioso
+              }
+            }}
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            <IconEye className="h-4 w-4" />
+            {ocultarValores ? "Mostrar valores" : "Ocultar valores"}
+          </button>
+        </div>
+
+        {erroStats && (
+          <div className="mt-6 rounded-lg border border-[var(--danger)]/50 bg-[var(--danger-soft)] p-4 text-sm text-[var(--danger)]">
+            {erroStats}
+          </div>
+        )}
+
+        <section className="mt-8" aria-label="Ação principal">
+          <Link
+            href="/orcamentos/novo"
+            className="home-hero-card group relative flex w-full items-center gap-4 overflow-hidden rounded-2xl border-2 border-[var(--accent)] bg-[var(--accent)] p-5 text-left text-[var(--on-accent)] shadow-md transition hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] sm:gap-5 sm:p-6"
+            aria-label="Criar novo orçamento — abre o formulário de cadastro"
+          >
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-40 bg-white/10 blur-2xl transition group-hover:bg-white/15" />
+
+            <span
+              aria-hidden
+              className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30 transition group-hover:bg-white/25 sm:h-14 sm:w-14"
+            >
+              <IconFileText className="h-6 w-6 sm:h-7 sm:w-7" />
+            </span>
+
+            <span className="relative min-w-0 flex-1">
+              <h2 className="text-lg font-bold tracking-tight sm:text-2xl">
+                Novo orçamento
+              </h2>
+              <p className="mt-1 text-sm text-white/85 sm:text-base">
+                Clique aqui para montar um orçamento
+              </p>
+            </span>
+
+            <span
+              aria-hidden
+              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[var(--accent)] shadow-sm transition group-hover:translate-x-0.5 group-hover:shadow md:h-11 md:w-11"
+            >
+              <IconChevronRight className="h-5 w-5" />
+            </span>
+          </Link>
+        </section>
+
+        {alertasControle.length > 0 && (
+          <section className="mt-6 rounded-xl border border-[var(--warning)]/50 bg-[var(--warning-soft)] p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-[var(--warning)]">
+                  Controle de obras — atualize os gastos
+                </h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  {alertasControle.length === 1
+                    ? "Há 1 obra precisando do registro diário."
+                    : `Há ${alertasControle.length} obras precisando do registro diário.`}{" "}
+                  Leva poucos segundos por dia.
+                </p>
+              </div>
+              <Link
+                href="/controle?filtro=atualizar"
+                className="rounded-lg bg-[var(--warning)] px-3 py-2 text-sm font-semibold text-white"
+              >
+                Abrir controle
+              </Link>
+            </div>
+            <ul className="mt-3 space-y-1 text-sm">
+              {alertasControle.slice(0, 4).map((a) => (
+                <li key={`${a.tipo}-${a.id}`}>
+                  <Link href={`/controle/${a.id}`} className="underline-offset-2 hover:underline">
+                    {a.mensagem}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="text-base font-semibold">Alertas</h2>
+          {carregandoStats ? (
+            <p className="mt-4 text-sm text-[var(--muted)]">Carregando indicadores…</p>
+          ) : erroStats ? (
+            <p className="mt-4 text-sm text-[var(--muted)]">Indicadores indisponíveis.</p>
+          ) : (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <Link
+              href="/orcamentos?status=CADASTRADO"
+              className="rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-soft)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Sem definição final</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.cadastrados ?? 0} orçamento(s) com status cadastrado.
+              </p>
+            </Link>
+            <Link
+              href="/orcamentos?alerta=ACEITOS_SEM_INICIO_5_DIAS"
+              className="rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-soft)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Aceitos aguardando início</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.aceitosAguardandoInicio ?? 0} orçamento(s) aceitos há mais de 5 dias.
+              </p>
+            </Link>
+            <Link
+              href="/orcamentos?status=FINALIZADO&alerta=FINALIZADOS_NAO_QUITADOS"
+              className="rounded-lg border border-[var(--danger)]/40 bg-[var(--danger-soft)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Finalizados não quitados</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.finalizadosNaoQuitados ?? 0} orçamento(s) finalizados com pendência.
+              </p>
+            </Link>
+            <Link
+              href="/orcamentos?status=INICIALIZADO"
+              className="rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-soft)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Em andamento</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.inicializados ?? 0} orçamento(s) inicializados.
+              </p>
+            </Link>
+            <Link
+              href="/orcamentos?alerta=INICIALIZADOS_SEM_RECEBIMENTO_15_DIAS"
+              className="rounded-lg border border-[var(--accent)]/30 bg-[var(--accent-soft)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Sem recebimento recente</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.inicializadosSemRecebimento15Dias ?? 0} orçamento(s) inicializados sem recebimento há mais de 15 dias.
+              </p>
+            </Link>
+            <Link
+              href="/orcamentos?alerta=PENDENTES_RECEBIMENTO"
+              className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3 transition hover:opacity-90"
+            >
+              <p className="text-sm font-medium">Pendentes de recebimento</p>
+              <p className="text-sm text-[var(--muted)]">
+                {stats?.orcamentosPendentes ?? 0} orçamento(s) em aberto.
+              </p>
+            </Link>
+          </div>
+          )}
+        </section>
+
+        <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="text-base font-semibold">Indicadores</h2>
+          {carregandoStats ? (
+            <p className="mt-4 text-sm text-[var(--muted)]">Carregando indicadores…</p>
+          ) : erroStats ? null : (
+          <>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
+              <p className="text-xs text-[var(--muted)]">Aceitos</p>
+              <p className="mt-1 text-xl font-semibold">{exibirMoeda(stats?.valorAceitos ?? 0)}</p>
+            </div>
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
+              <p className="text-xs text-[var(--muted)]">Inicializados</p>
+              <p className="mt-1 text-xl font-semibold">{exibirMoeda(stats?.valorInicializados ?? 0)}</p>
+            </div>
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
+              <p className="text-xs text-[var(--muted)]">Finalizados</p>
+              <p className="mt-1 text-xl font-semibold">{exibirMoeda(stats?.valorFinalizados ?? 0)}</p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4">
+            <p className="text-sm font-semibold">Gráfico financeiro</p>
+            <p className="text-xs text-[var(--muted)]">
+              Recebido no mês, esperado para o mês e valor total anual.
+              {(stats as { esperadoNoMesHeuristica?: boolean } | null)?.esperadoNoMesHeuristica && (
+                <span className="block mt-1 text-[var(--warning)]">
+                  O valor esperado no mês inclui estimativa heurística para orçamentos sem parcelas configuradas.
+                </span>
+              )}
+            </p>
+            <div className="mt-4 space-y-3">
+              {[
+                { id: "recebido", label: "Recebido no mês", valor: stats?.recebidoNoMes ?? 0, cor: "bg-[var(--success)]" },
+                { id: "esperado", label: "Esperado no mês", valor: stats?.esperadoNoMes ?? 0, cor: "bg-[var(--warning)]" },
+                { id: "anual", label: "Valor total anual", valor: stats?.valorTotalAnual ?? 0, cor: "bg-[var(--accent)]" },
+              ].map((item) => (
+                <div key={item.id}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="text-[var(--muted)]">{item.label}</span>
+                    <span className="font-semibold text-[var(--foreground)]">{exibirMoeda(item.valor)}</span>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-[var(--surface)]">
+                    <div
+                      className={`h-full rounded-full ${item.cor}`}
+                      style={{ width: `${Math.max(4, (item.valor / graficoMaximo) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4">
+            <p className="text-sm font-semibold">Levantamento de recebimentos no mês</p>
+            <p className="text-xs text-[var(--muted)]">
+              Total recebido no mês atual: <span className="font-semibold text-[var(--foreground)]">{exibirMoeda(stats?.levantamentoRecebimentosMensal ?? 0)}</span>
+            </p>
+          </div>
+
+          <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-4">
+            <p className="text-sm font-semibold">Valores mensais por entrada em Inicializado</p>
+            <p className="text-xs text-[var(--muted)]">
+              Quando um orçamento muda para status Inicializado, seu valor entra no mês correspondente.
+            </p>
+            <div className="mt-4 grid grid-cols-12 gap-1 sm:gap-2">
+              {meses.map((mes, idx) => {
+                const valor = stats?.valoresMensaisInicializados?.[idx] ?? 0;
+                const altura = Math.max(8, Math.round((valor / maxMensalInicializado) * 100));
+                return (
+                  <div key={mes} className="flex min-w-0 flex-col items-center">
+                    <div className="flex h-28 w-full min-w-0 items-end">
+                      <div
+                        className="w-full rounded-t-md bg-[var(--accent)]"
+                        style={{ height: `${altura}%` }}
+                        title={`${mes}: ${ocultarValores ? "••••••" : formatarPreco(valor)}`}
+                      />
+                    </div>
+                    <span className="mt-1 w-full text-center text-[8px] font-semibold leading-tight text-[var(--foreground)] tabular-nums sm:text-[9px]">
+                      {exibirMoeda(valor)}
+                    </span>
+                    <span className="mt-0.5 text-[10px] text-[var(--muted)]">{mes}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          </>
+          )}
+        </section>
+
+        <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-semibold">Relatórios de recebimentos</h2>
+              <p className="text-sm text-[var(--muted)]">
+                Selecione o mês e gere o relatório.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-[var(--muted)]">Mês</label>
+              <select
+                value={mesRelatorio}
+                onChange={(e) => setMesRelatorio(e.target.value)}
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm"
+              >
+                <option value="">Ano inteiro</option>
+                {mesesLongos.map((mesNome, idx) => (
+                  <option key={mesNome} value={String(idx + 1)}>
+                    {mesNome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <a
+              href={
+                mesRelatorio
+                  ? `/api/relatorios/recebimentos/pdf?ano=${anoAtual}&mes=${mesRelatorio}`
+                  : `/api/relatorios/recebimentos/pdf?ano=${anoAtual}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-medium text-[var(--on-accent)] hover:opacity-90"
+            >
+              {mesRelatorio ? "Imprimir mês selecionado" : "Imprimir relatório anual"}
+            </a>
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm">
+              {mesRelatorio
+                ? `Total do mês: ${exibirMoeda(stats?.recebimentosMensais?.[Number(mesRelatorio) - 1] ?? 0)}`
+                : `Total no ano: ${exibirMoeda((stats?.recebimentosMensais ?? []).reduce((s, v) => s + v, 0))}`}
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <AtalhoPrincipal
+            href="/orcamentos"
+            titulo="Orçamentos"
+            descricao="Lista, edição e recebimentos"
+            icone={<IconFileText className="h-6 w-6 text-[var(--success)]" />}
+          />
+          <AtalhoPrincipal
+            href="/controle"
+            titulo="Controle"
+            descricao="Gastos e resultado das obras"
+            icone={<IconChart className="h-6 w-6 text-[var(--accent)]" />}
+          />
+          <AtalhoPrincipal
+            href="/clientes"
+            titulo="Clientes"
+            descricao="Cadastro e contatos"
+            icone={<IconUsers className="h-6 w-6 text-[var(--accent)]" />}
+          />
+          <AtalhoPrincipal
+            href="/catalogo"
+            titulo="Catálogo"
+            descricao="Serviços, materiais e SINAPI"
+            icone={<IconCatalog className="h-6 w-6 text-[var(--muted)]" />}
+          />
+        </section>
+
+        <div className="mt-8 flex justify-center">
+          <Link
+            href="/configuracoes"
+            className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            <IconSettings className="h-4 w-4" />
+            Configurações do PDF
+          </Link>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function AtalhoPrincipal({
+  href,
+  titulo,
+  descricao,
+  icone,
+}: {
+  href: string;
+  titulo: string;
+  descricao: string;
+  icone: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm transition hover:border-[var(--accent)] hover:bg-[var(--surface-elevated)]"
+    >
+      <div>
+        <div className="inline-flex rounded-lg bg-[var(--surface-elevated)] p-2.5">{icone}</div>
+        <p className="mt-3 text-sm font-semibold">{titulo}</p>
+        <p className="mt-1 text-xs text-[var(--muted)]">{descricao}</p>
+      </div>
+      <span className="mt-4 text-sm font-medium text-[var(--accent)]">
+        Acessar <IconChevronRight className="ml-1 inline h-4 w-4" />
+      </span>
+    </Link>
+  );
+}

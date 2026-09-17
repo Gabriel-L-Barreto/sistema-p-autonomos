@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TipoPagamento {
+  DINHEIRO
+  PIX
+  CARTAO
+}
+
+enum TipoMedida {
+  UNITARIO
+  M2
+  M3
+  METROS
+}
+
+enum Status {
+  CADASTRADO
+  NAO_ACEITO
+  ACEITO
+  INICIALIZADO
+  FINALIZADO
+}
+
+model Autonomo {
+  id         Int         @id @default(autoincrement())
+  nome       String
+  orcamentos Orcamento[]
+
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@map("autonomos")
+}
+
+model Cliente {
+  id         Int         @id @default(autoincrement())
+  nome       String
+  afiliacao  String?
+  telefone   String?
+  ownerAutonomoId Int
+  orcamentos Orcamento[]
+  
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([ownerAutonomoId])
+  @@map("clientes")
+}
+
+model Material {
+  id                 Int                  @id @default(autoincrement())
+  nome_material      String
+  unidadeMedida      TipoMedida
+  precoUnitario      Float
+  ativo              Boolean              @default(true)
+  ownerAutonomoId    Int
+  materiaisOrcamento MaterialOrcamento[]
+  servicoMateriais   ServicoMaterial[]
+
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([ownerAutonomoId])
+  @@map("materiais")
+}
+
+model Servico {
+  id           Int                  @id @default(autoincrement())
+  descricao    String
+  tipo_cobranca TipoMedida
+  precoBase    Float
+  servicoAtivo Boolean              @default(true)
+  ownerAutonomoId Int
+  servicosOrcamento ServicoOrcamento[]
+  servicoMateriais  ServicoMaterial[]
+
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([ownerAutonomoId])
+  @@map("servicos")
+}
+
+model ServicoMaterial {
+  id          Int      @id @default(autoincrement())
+  quantidade  Float
+  servicoId   Int
+  servico     Servico  @relation(fields: [servicoId], references: [id], onDelete: Cascade)
+  materialId  Int
+  material    Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([servicoId, materialId])
+  @@map("servico_materiais")
+}
+
+model Orcamento {
+  id             Int                @id @default(autoincrement())
+  endereco       String
+  data           DateTime           @default(now())
+  tempoEstimado  Int?
+  incluiMaterial Boolean            @default(false)
+  totalParcelas  Float?
+  formaPagamentoPadrao TipoPagamento?
+  status         Status             @default(CADASTRADO)
+  complemento    String?            @db.Text
+
+  clienteNome      String?
+  clienteTelefone  String?
+  clienteAfiliacao String?
+
+  ownerAutonomoId Int
+  ownerAutonomo   Autonomo           @relation(fields: [ownerAutonomoId], references: [id], onDelete: Restrict)
+  
+  clienteId      Int
+  cliente        Cliente            @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  
+  /** Início da obra no controle de gastos (definido pelo usuário). */
+  dataInicioControle DateTime?      @db.Date
+  /** Fim da obra no controle (fecha relatório e encerra alertas). */
+  dataFimControle DateTime?         @db.Date
+  /** Estimativa de dias só no controle (se vazio, usa tempoEstimado do orçamento). */
+  tempoEstimadoControle Int?
+  /** Se true, o período do controle inclui sábados e domingos. */
+  contaFinsDeSemanaControle Boolean @default(false)
+  /**
+   * Estimativa rápida (legado/finalizados): gasto ≈ dias × valor/dia (só dias úteis).
+   * Não substitui o registro diário nas obras novas.
+   */
+  controleUsaEstimativa Boolean     @default(false)
+  controleDiasEstimativa Int?
+  controleValorDiaEstimativa Float?
+
+  materiais      MaterialOrcamento[]
+  servicos       ServicoOrcamento[]
+  pagamentos     Pagamento[]
+  historicoStatus OrcamentoStatusHistorico[]
+  gastosControle ControleGastoDia[]
+  
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([ownerAutonomoId])
+  @@map("orcamentos")
+}
+
+/** Gasto diário da obra (controle interno; não altera orçamento nem recebimentos). */
+model ControleGastoDia {
+  id             Int       @id @default(autoincrement())
+  orcamentoId    Int
+  orcamento      Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  data           DateTime  @db.Date
+  valorPessoal   Float     @default(0)
+  valorMateriais Float     @default(0)
+  semGastos      Boolean   @default(false)
+  observacao     String?   @db.VarChar(300)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([orcamentoId, data])
+  @@index([orcamentoId, data])
+  @@map("controle_gasto_dia")
+}
+
+model OrcamentoStatusHistorico {
+  id          Int      @id @default(autoincrement())
+  orcamentoId Int
+  status      Status
+  data        DateTime @default(now())
+
+  orcamento   Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+
+  @@index([orcamentoId, data])
+  @@map("orcamento_status_historico")
+}
+
+model MaterialOrcamento {
+  id                Int       @id @default(autoincrement())
+  materialNome      String?
+  medidaMaterial    TipoMedida?
+  origemMaterial    String?
+  quantidade        Float
+  precoUnitario     Float
+  
+  orcamentoId       Int
+  orcamento         Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  
+  materialId        Int?
+  material          Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("materiais_orcamento")
+}
+
+model ServicoOrcamento {
+  id            Int       @id @default(autoincrement())
+  servicoDescricao String? @db.Text
+  descricaoLivre String?  @db.Text
+  medidaServico TipoMedida?
+  quantidade    Float
+  valorMaoObra  Float
+  
+  orcamentoId   Int
+  orcamento      Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  
+  servicoId     Int?
+  servico       Servico?  @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("servicos_orcamento")
+}
+
+model Pagamento {
+  id              Int            @id @default(autoincrement())
+  valorRecebido   Float
+  formaPagamento  TipoPagamento
+  data            DateTime       @default(now())
+  
+  orcamentoId     Int
+  orcamento       Orcamento      @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("pagamentos")
+}
+
+model EmpresaConfig {
+  id               Int      @id @default(autoincrement())
+  cabecalho        String   @db.Text
+  cabecalhoCor     String?  @db.VarChar(20)
+  cabecalhoLocal   String?  @db.VarChar(10) // inicio, meio, fim
+  rodape           String?  @db.Text
+  rodapeLocal      String?  @db.VarChar(10) // inicio, meio, fim
+  logoUrl          String?  @db.Text
+  timbradoUrl      String?  @db.Text
+  timbradoRecebimentoUrl String? @db.Text
+  pixQrCodeUrl     String?  @db.Text
+  nomeAssinatura   String
+  cidadeEmissao    String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("empresa_config")
+}
