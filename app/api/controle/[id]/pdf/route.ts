@@ -36,7 +36,7 @@ export async function GET(_request: NextRequest, { params }: Ctx) {
       return NextResponse.json({ error: "Obra não encontrada para controle" }, { status: 404 });
     }
 
-    const opts = opcoesCalculoDoOrcamento(orc);
+    const opts = opcoesCalculoDoOrcamento();
     const resumo = montarResumoControle({
       valorTotal: calcularValorTotal(orc.materiais, orc.servicos, orc.incluiMaterial, opts),
       valorRecebido: calcularTotalPago(orc.pagamentos),

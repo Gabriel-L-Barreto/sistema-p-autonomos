@@ -26,13 +26,7 @@ export type OpcoesCalculoOrcamento = {
   descontoPercentual?: number | null;
 };
 
-export function opcoesCalculoDoOrcamento(_orc?: {
-  tipoOrcamento?: string | null;
-  valorDiaria?: number | null;
-  diasTrabalhados?: number | null;
-  descontoValor?: number | null;
-  descontoPercentual?: number | null;
-}): OpcoesCalculoOrcamento {
+export function opcoesCalculoDoOrcamento(_orc?: unknown): OpcoesCalculoOrcamento {
   return { tipoOrcamento: "SERVICOS" };
 }
 
