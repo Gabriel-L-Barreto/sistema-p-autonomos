@@ -37,7 +37,7 @@ const navItems: { id: PaginaAtiva; href: string; label: string; icon: React.Reac
 
 export function LayoutHeader({ paginaAtiva = "inicio", className = "", breadcrumb }: Props) {
   const [branding, setBranding] = useState<{ nome: string; logoUrl: string | null }>({
-    nome: "Orçamentos",
+    nome: "Demo Orçamentos",
     logoUrl: null,
   });
 
@@ -50,7 +50,7 @@ export function LayoutHeader({ paginaAtiva = "inicio", className = "", breadcrum
         const nome =
           typeof data?.nomeAssinatura === "string" && data.nomeAssinatura.trim()
             ? data.nomeAssinatura.trim()
-            : "Orçamentos";
+            : "Demo Orçamentos";
         const logoUrl =
           typeof data?.logoUrl === "string" && data.logoUrl.trim()
             ? data.logoUrl.trim()

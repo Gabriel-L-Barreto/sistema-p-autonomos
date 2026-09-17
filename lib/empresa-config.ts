@@ -11,13 +11,13 @@ type EmpresaConfigDelegate = {
 const empresaConfig = (prisma as unknown as { empresaConfig: EmpresaConfigDelegate }).empresaConfig;
 
 const DEFAULT_CONFIG = {
-  cabecalho: "CNPJ:\nContatos: Tel: / Email:\nEndereço",
+  cabecalho: "Sistema de Orçamentos (demo)\nContatos: / Email:\nEndereço",
   logoUrl: null as string | null,
   timbradoUrl: null as string | null,
   timbradoRecebimentoUrl: null as string | null,
   pixQrCodeUrl: null as string | null,
-  cabecalhoCor: "#000000",
-  nomeAssinatura: "",
+  cabecalhoCor: "#5b4b8a",
+  nomeAssinatura: "Demo",
   cidadeEmissao: "",
 };
 
